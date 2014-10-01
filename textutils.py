@@ -90,10 +90,10 @@ def hexdump(data, highlight = None, output="print", printoffset=0):
 		if (output == "print"):
 			print s
 		else:
-			out += s
+			out += s + "\n"
 		index += 16
 	if (output == "string"):
-		return s
+		return out
 
 # attempt to do sorta mutable strings
 class Buffer(object):
@@ -120,6 +120,8 @@ class Buffer(object):
 		if x.stop > len(self.s):
 			self.s += chr(0) * (x.stop - len(self.s))
 		self.s = self.s[:x.start] + y + self.s[x.stop:]
+	def __eq__(self, x):
+		return self.s.__eq__(x)
 	def __str__(self):
 		return self.s.__str__()
 	def __add__(self, x):
