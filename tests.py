@@ -8,18 +8,18 @@ import unittest
 
 
 class TestCrypto(unittest.TestCase):
-	cleartext="A"*16
+	cleartext = "A"*16
 	IV = "B"*16
 	key = "C" * 16
 
 	def test_md5(self):
-		x=md5("Aris").encode("hex")
+		x = md5("Aris").encode("hex")
 		self.assertEqual(x, "6a9e32c39e3dedf6dceb96f0dac0ffdd")
 	def test_sha1(self):
-		x=sha1("Aris").encode("hex")
+		x = sha1("Aris").encode("hex")
 		self.assertEqual(x, "564ab1b32a47ae3ac7d3f9ad2c2dbdf2a1df2076")
 	def test_sha256(self):
-		x=sha256("Aris").encode("hex")
+		x = sha256("Aris").encode("hex")
 		self.assertEqual(x,"b114ebc3ed13bfbef292395f009659771b56edb1e9be848bcdcd0fbfd6b24f4a")
 	def test_aes(self):
 		x = aes(self.cleartext, self.key)
@@ -84,15 +84,6 @@ class TestBuffer(unittest.TestCase):
 	def test_encode(self):
 		self.assertEqual(self.s.encode("hex"), "61626364")
 
-
-
-class TestDummy(unittest.TestCase):
-	def setUp(self):
-		self.test=1234
-	def test_xxx(self):
-		self.assertEqual(1,1)
-		self.assertTrue(True)
-
 def __assert__(x):
 	if not x:
 		 raise Exception("Assertion failed")
@@ -111,7 +102,5 @@ def test():
 #if __name__ == '__main__':
 #    test()
 
-
 if __name__ == '__main__':
     unittest.main()
-
