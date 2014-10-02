@@ -101,7 +101,12 @@ class TestTextSocket(unittest.TestCase):
 		self.ready.clear()
 
 	def textserver(self):
-		bindsocket=BindSocket(port=4444)
+		try:
+			bindsocket=BindSocket(port=4444)
+		except:
+			self.ready.set()
+			bindsocket.close()
+			return
 		self.ready.set()
 		s = bindsocket.accept()
 		s.send("Hello\n")
@@ -121,7 +126,18 @@ class TestTextSocket(unittest.TestCase):
 		txt = s.readline("TERMINATOR")
 		self.assertEqual(txt, "finished")
 		s.send("Finished\n")
+		txt = s.readline()
+		self.assertEqual(txt, None)
 		s.close()
 
+	def test_len(self):
+		s = Socket("localhost",4444)
+		s.connect()
+		txt = s.read_block(len("Hello\n"))
+		self.assertEqual(txt, "Hello\n")
+		txt = s.read_block(len("How is it going?\r\n"))
+		self.assertEqual(txt, "How is it going?\r\n")
+		s.send("Finished\n")
+		s.close()
 if __name__ == '__main__':
     unittest.main()

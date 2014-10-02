@@ -74,6 +74,7 @@ class BindSocket(object):
 	s = None
 	def __init__(self, bindhost="::", port=0):
 		self.s = socket.socket(socket.AF_INET6)
+		self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.s.bind((bindhost, port))
 		self.s.listen(5)
 	def accept(self):
