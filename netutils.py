@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 import socket
+import select
+
+class TimeoutException(Exception):
+	pass
 
 # socket class
 class Socket(object):
@@ -66,6 +70,18 @@ class Socket(object):
 		ret = self.readbuffer[:index]
 		self.readbuffer = self.readbuffer[index + len(terminator):]
 		return ret
+	def poll(self, read=True, write=False, exception=False, timeout=0.0):
+		"""Poll the socket for read, write or except event. Timeout in seconds.
+		Returns tupple of booleans"""
+		if (not read and not write and not exception):
+			raise Exception("Invalid arguments")
+		rlist, wlist, xlist = [],[],[]
+		if read: rlist.append(self.s)
+		if write: wlist.append(self.s)
+		if exception: xlist.append(self.s)
+		rlist,wlist,xlist = select.select(rlist, wlist, xlist, timeout)
+		return (len(rlist) > 0, len(wlist) > 0, len(xlist) > 0)
+
 	def close(self):
 		self.s.close()
 		del self.s
@@ -77,7 +93,13 @@ class BindSocket(object):
 		self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.s.bind((bindhost, port))
 		self.s.listen(5)
-	def accept(self):
+	def accept(self, timeout = None):
+		if (timeout != None):
+			rlist, wlist, xlist = select.select([self.s], [self.s], [self.s], timeout)
+			#print rlist, wlist, xlist
+			if len(rlist)==0 and len(wlist)==0 and len(xlist)==0:
+				raise TimeoutException("Accept: timeout")
+
 		new = self.s.accept()
 		return Socket(new[1][0], new[1][1], sock=new[0])
 	def close(self):

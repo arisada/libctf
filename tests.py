@@ -108,7 +108,7 @@ class TestTextSocket(unittest.TestCase):
 			bindsocket.close()
 			return
 		self.ready.set()
-		s = bindsocket.accept()
+		s = bindsocket.accept(timeout=1.0)
 		s.send("Hello\n")
 		s.send("How is it going?\r\n")
 		s.send("finishedTERMINATOR")
@@ -139,5 +139,28 @@ class TestTextSocket(unittest.TestCase):
 		self.assertEqual(txt, "How is it going?\r\n")
 		s.send("Finished\n")
 		s.close()
+
+	def test_poll(self):
+		s = Socket("localhost",4444)
+		s.connect()
+		(r,w,x) = s.poll(read=True, exception=True, timeout=1.0)
+		self.assertEqual((r,w,x), (True, False, False))
+		# Now socket should have data to read and clear to send
+		(r,w,x) = s.poll(read=True, write=True, exception = True, timeout=0.0)
+		self.assertEqual((r,w,x), (True, True, False))
+		s.readline()
+		s.readline()
+		s.readline("TERMINATOR")
+		# now socket should be empty
+		(r,w,x) = s.poll(read=True, write=True, exception = True, timeout=0.0)
+		self.assertEqual((r,w,x), (False, True, False))
+		s.send("Finished\n")
+		s.close()
+
+class TestBindSocket(unittest.TestCase):
+	def test_timeout(self):
+		s= BindSocket("::",4444)
+		self.assertRaises(TimeoutException, s.accept, 0.2)
+
 if __name__ == '__main__':
     unittest.main()
