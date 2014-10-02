@@ -5,6 +5,7 @@ from netutils import *
 from cryptutils import *
 
 import unittest
+import threading
 
 
 class TestCrypto(unittest.TestCase):
@@ -84,23 +85,43 @@ class TestBuffer(unittest.TestCase):
 	def test_encode(self):
 		self.assertEqual(self.s.encode("hex"), "61626364")
 
-def __assert__(x):
-	if not x:
-		 raise Exception("Assertion failed")
+class TestTextSocket(unittest.TestCase):
+	ready = threading.Event()
+	thread = None
 
-def test():
+	def setUp(self):
+		self.ready.clear()
+		self.thread = threading.Thread(target=self.textserver, args=())
+		self.thread.start()
+		self.ready.wait()
 
-	#aes test
-	s=Socket("localhost",4444)
-	s.connect()
-	while True:
-		r = s.readline(terminator="\r\n")
-		if (r == None):
-			break
-		print "'%s'"%(r)
+	def tearDown(self):
+		self.thread.join()
+		del self.thread
+		self.ready.clear()
 
-#if __name__ == '__main__':
-#    test()
+	def textserver(self):
+		bindsocket=BindSocket(port=4444)
+		self.ready.set()
+		s = bindsocket.accept()
+		s.send("Hello\n")
+		s.send("How is it going?\r\n")
+		s.send("finishedTERMINATOR")
+		s.readline()
+		s.close()
+		bindsocket.close()
+
+	def test_lines(self):
+		s = Socket("localhost", 4444)
+		s.connect()
+		txt = s.readline()
+		self.assertEqual(txt, "Hello")
+		txt = s.readline("\r\n")
+		self.assertEqual(txt, "How is it going?")
+		txt = s.readline("TERMINATOR")
+		self.assertEqual(txt, "finished")
+		s.send("Finished\n")
+		s.close()
 
 if __name__ == '__main__':
     unittest.main()
