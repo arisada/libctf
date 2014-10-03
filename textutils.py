@@ -138,6 +138,36 @@ def bindiff(d1, d2, onlydiff=True, output="print"):
 	if (output == "string"):
 		return out
 
+def bindifftable(d1, d2):
+	"""Output a list of tupples (offset, orig, new) of the differences between d1 and d2"""
+	table = []
+	totallen = min(len(d1), len(d2))
+	offset = None
+	orig = ""
+	new =""
+
+	for i in xrange(totallen):
+		a = d1[i]
+		b = d2[i]
+		if offset != None:
+			if a != b:
+				orig +=a
+				new +=b
+			else:
+				table.append((offset, orig, new))
+				offset, orig, new = None, "",""
+		else:
+			if a != b:
+				offset = i
+				orig = a
+				new = b
+	if offset != None:
+		table.append((offset, orig, new))
+	if len(d2) > totallen:
+		table.append((totallen, "", d2[totallen:]))
+	elif len(d1) > totallen:
+		raise Exception("cannot shrink in patches")
+	return table 
 
 # attempt to do sorta mutable strings
 class Buffer(object):

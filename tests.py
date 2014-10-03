@@ -72,6 +72,16 @@ class TestHexdump(unittest.TestCase):
 		"21                               !               \n"
 		out = out.replace('\033[91m', "").replace('\033[0m',"")
 		self.assertEqual(out, expected)
+	def test_bindifftable(self):
+		s1 = "A"*15 + "BCD" + "A"*15
+		s2 = "A"*15 + "AAA" + "A"*14 + "B" + "DEF"
+		table = bindifftable(s1, s2)
+		expected = [
+			(15, "BCD", "AAA"),
+			(32, "A", "B"),
+			(33, "", "DEF")
+		]
+		self.assertEqual(table, expected)
 		
 class TestBuffer(unittest.TestCase):
 	def setUp(self):
