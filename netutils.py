@@ -22,7 +22,13 @@ class Socket(object):
 		return self.s.connect(self.destination)
 	def send(self, x):
 		return self.s.send(x)
-	def recv(self, length=0):
+	def __wait_recv__(self, timeout):
+		if (timeout != None):
+			(r,w,x) = self.poll(read=True, exception=True, timeout=timeout)
+			if not r and not x:
+				raise TimeoutException("recv: timeout")
+		
+	def recv(self, length=0, timeout=None):
 		"""Read length bytes from socket, return when data available"""
 		if len(self.readbuffer) > 0:
 			if length == 0:
@@ -36,12 +42,14 @@ class Socket(object):
 			return 0
 		if length == 0:
 			length = 4096
+		self.__wait_recv__(timeout)
 		ret = self.s.recv(length)
 		if len(ret) == 0:
 			self.eof = True
-	def read_block(self, length):
+	def read_block(self, length, timeout=None):
 		"""Blocking read of length bytes"""
 		while len(self.readbuffer) < length and not self.eof:
+			self.__wait_recv__(timeout)
 			r = self.s.recv(4096)
 			if len(r) == 0:
 				self.eof = True
@@ -51,10 +59,11 @@ class Socket(object):
 		self.readbuffer = self.readbuffer[length:]
 		return ret
 
-	def readline(self, terminator="\n"):
+	def readline(self, terminator="\n", timeout=None):
 		"""Read a complete line until EOF. Returns None when finished"""
 		while self.readbuffer.find(terminator) < 0 and \
 			not self.eof:
+			self.__wait_recv__(timeout)
 			r = self.s.recv(4096)
 			if len(r) == 0:
 				self.eof = True

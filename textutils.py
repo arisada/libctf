@@ -31,6 +31,48 @@ def color(string, color="red"):
 	else:
 		return string
 
+def __hexdata(line, mask, short=False):
+	s = ""
+	# Print first half of hex dump
+	for i in xrange(len(line[:8])):
+		c = "%.2x"%(ord(line[i]))
+		if (mask[i]):
+			s += color(c, "red")
+		else:
+			s += c
+		s+= "" if short else " "
+
+	s+= "" if short else " "
+	# Print second half of hex dump
+	for i in xrange(len(line[8:])):
+		c = "%.2x"%(ord(line[8 + i]))
+		if (mask[i + 8]):
+			s += color(c, "red")
+		else:
+			s += c
+		s+= "" if short else " "
+
+	if (len(line) < 16):
+		if short:
+			s += " " * 2 * (16-len(line))
+		else:
+			s += " " * 3 * (16-len(line))
+	s+= " "
+	# Print ascii part
+	for i in xrange(len(line)):
+		if __isprintable__(line[i]):
+			c=line[i]
+		else:
+			c="."
+		if mask[i]:
+			s += color(c, "red")
+		else:
+			s += c
+	# complete ascii line if incomplete
+	if len(line) < 16:
+		s += " " * (16 - len(line))
+	return s
+
 def hexdump(data, highlight = None, output="print", printoffset=0):
 	"""output hexdump data with highlight on strings in highlight list"""
 	#gen = m_hexdump.hexdump(data, result="generator")
@@ -59,34 +101,7 @@ def hexdump(data, highlight = None, output="print", printoffset=0):
 		x = data[index:index+16]
 		# Print the offset
 		s = "%.8x: "%(index + printoffset)
-		# Print first half of hex dump
-		for i in xrange(len(x[:8])):
-			c = "%.2x "%(ord(x[i]))
-			if (mask[index + i]):
-				s += color(c, "red")
-			else:
-				s += c
-		s+= " "
-		# Print second half of hex dump
-		for i in xrange(len(x[8:])):
-			c = "%.2x "%(ord(x[8 + i]))
-			if (mask[index + i + 8]):
-				s += color(c, "red")
-			else:
-				s += c
-		if (len(x) < 16):
-			s += " " * 3 * (16-len(x))
-		s+= " "
-		# Print ascii part
-		for i in xrange(len(x)):
-			if __isprintable__(x[i]):
-				c=x[i]
-			else:
-				c="."
-			if mask[index +i]:
-				s += color(c, "red")
-			else:
-				s += c
+		s += __hexdata(x, mask[index:index+16])
 		if (output == "print"):
 			print s
 		else:
@@ -94,6 +109,35 @@ def hexdump(data, highlight = None, output="print", printoffset=0):
 		index += 16
 	if (output == "string"):
 		return out
+
+def bindiff(d1, d2, onlydiff=True, output="print"):
+	"""Output an hexdump diff of two binary strings, with highlight of differences
+	if onlydiff=True: do only show different lines"""
+	totallen = max(len(d1), len(d2))
+	# create a mask of differences
+	mask = map(lambda (x,y): x != y, zip(d1,d2))
+	mask += [True] * abs(len(d1) - len(d2))
+	
+	index = 0
+	out = ""
+	while index < totallen:
+		# Print the offset
+		x1 = d1[index:index+16]
+		x2 = d2[index:index+16]
+		if not onlydiff or x1 != x2:
+			s = "%.8x: "%(index)
+			s += __hexdata(x1, mask[index:index+16], short=True)
+			s += "  "
+			s += __hexdata(x2, mask[index:index+16], short=True)
+
+			if (output == "print"):
+				print s
+			else:
+				out += s + "\n"
+		index += 16
+	if (output == "string"):
+		return out
+
 
 # attempt to do sorta mutable strings
 class Buffer(object):
