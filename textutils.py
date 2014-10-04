@@ -11,6 +11,10 @@ def w(x):
 	"""Pack to uint16"""
 	return struct.pack("<H", x)
 
+def cencode(s):
+	"""Encode to \\x encoding"""
+	ret = ''.join(map(lambda x:"\\x"+x.encode("hex"), s))
+	return '"' + ret + '"'
 def __isprintable__(c):
 	val = ord(c)
 	if(val >= 0x20 and val < 0x80):

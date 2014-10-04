@@ -37,6 +37,8 @@ class TestPack(unittest.TestCase):
 	def test_pack(self):
 		self.assertEqual(d(0x41424344), "DCBA")
 		self.assertEqual(w(0x4142), "BA")
+	def test_cencode(self):
+		self.assertEqual(cencode("\x41\xff\x32"), '"\\x41\\xff\\x32"')
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
