@@ -15,6 +15,36 @@ def cencode(s):
 	"""Encode to \\x encoding"""
 	ret = ''.join(map(lambda x:"\\x"+x.encode("hex"), s))
 	return '"' + ret + '"'
+def cdecode(s):
+	"""Decode a \\x encoding"""
+	transform = {
+		"\\" : "\\",
+		"n":"\n",
+		"r":"\r",
+		"t":"\t"
+	}
+	ret = ""
+	i = 0
+	while i < len(s):
+		if s[i] != '\\':
+			ret += s[i]
+			i += 1
+			continue
+		if len(s[i:]) < 2:
+			raise TypeError("Invalid \\ encoding")
+		i += 1
+		c = s[i]
+		if c in transform.keys():
+			ret += transform[c]
+			i += 1
+			continue
+		if c != 'x':
+			raise TypeError("Invalid \\ encoding")
+		if len(s[i+1:]) < 2:
+			raise TypeError("Invalid \\ encoding")
+		ret += s[i+1:i+3].decode("hex")
+		i += 3
+	return ret
 def __isprintable__(c):
 	val = ord(c)
 	if(val >= 0x20 and val < 0x80):

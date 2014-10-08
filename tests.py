@@ -39,6 +39,15 @@ class TestPack(unittest.TestCase):
 		self.assertEqual(w(0x4142), "BA")
 	def test_cencode(self):
 		self.assertEqual(cencode("\x41\xff\x32"), '"\\x41\\xff\\x32"')
+	def test_cdecode(self):
+		orig = "ABC\xff\t\r\n"
+		encoded = "\\x41BC\\xff\\t\\r\\n"
+		self.assertEqual(cdecode(encoded), orig)
+		self.assertRaises(TypeError, cdecode, "xxxx\\x")
+		self.assertRaises(TypeError, cdecode, "xxxx\\x4")
+		self.assertRaises(TypeError, cdecode, "xxxx\\x4z4141")
+		self.assertRaises(TypeError, cdecode, "xxxx\\")
+		self.assertRaises(TypeError, cdecode, "xxxx\\z")
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
