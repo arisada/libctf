@@ -107,21 +107,52 @@ def __hexdata(line, mask, short=False):
 		s += " " * (16 - len(line))
 	return s
 
+def all_occurences(data, patterns, merged=False):
+	"""Find all occurence of patterns in data
+	Returns a list of (offset, len) tuples.	"""
+	offsets = []
+	# if the patterns is a string, make it an array
+	if isinstance(patterns, basestring):
+		patterns = [patterns]
+	# get the (offset, len) of every match in data
+	if patterns != None:
+		for p in patterns:
+			index = data.find(p)
+			while index != -1:
+				offsets.append((index, len(p)))
+				index = data.find(p, index +1)
+	offsets.sort()
+	if (merged):
+		offsets = _merge_offsets(offsets)
+	return offsets
+
+def _merge_offsets(offsetlist):
+	"""merge a list of offsets so they are the minimal set and
+	there is no overlap."""
+	#courtesy https://stackoverflow.com/questions/5679638/
+	#merging-a-list-of-time-range-tuples-that-have-overlapping-time-ranges
+
+	# change the map from (offset, len) to (start, stop)
+	initialrange = map(lambda (x,y):(x,x+y), offsetlist)
+	i = sorted(set([tuple(sorted(x)) for x in initialrange]))
+
+	# initialize final ranges to [(a,b)]
+	f = [i[0]]
+	for c, d in i[1:]:
+		a, b = f[-1]
+		if c<=b<d:
+			f[-1] = a, d
+		elif b<c<d:
+			f.append((c,d))
+		else:
+			pass
+	return map(lambda (x,y):(x,y-x), f)
+
 def hexdump(data, highlight = None, output="print", printoffset=0):
 	"""output hexdump data with highlight on strings in highlight list"""
 	#gen = m_hexdump.hexdump(data, result="generator")
-	offsets = []
 	out = ""
-	# if the highlight is a string, make it an array
-	if isinstance(highlight, basestring):
-		highlight = [highlight]
-	# get the (offset, len) of every match in data
-	if highlight != None and len(highlight) > 0:
-		for h in highlight:
-			index = data.find(h)
-			while index != -1:
-				offsets.append((index, len(h)))
-				index = data.find(h, index +1)
+	offsets = all_occurences(data, highlight)
 	#print offsets
 	# convert to a bit mask 
 	mask = [False] * len(data)

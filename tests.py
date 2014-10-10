@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from textutils import *
+from textutils import _merge_offsets
 from netutils import *
 from cryptutils import *
 
@@ -93,7 +94,17 @@ class TestHexdump(unittest.TestCase):
 			(33, "", "DEF")
 		]
 		self.assertEqual(table, expected)
-		
+	def test_alloccurences(self):
+		s = "ABCDEFGHIJKL"
+		offsets = all_occurences(s,["E", "IJ", "Z", "ABC"])
+		self.assertEqual(offsets, [(0,3),(4,1),(8,2)])
+	def test_mergeoffsets(self):
+		self.assertEqual(_merge_offsets([(0,5),(5,1)]), [(0,6)])
+		self.assertEqual(_merge_offsets([(0,5),(0,6)]), [(0,6)])
+		self.assertEqual(_merge_offsets([(0,6),(3,1)]), [(0,6)])
+		self.assertEqual(_merge_offsets([(4,1),(5,1)]), [(4,2)])
+		self.assertEqual(_merge_offsets([(1,2),(2,1),(3,1)]), [(1,3)])
+
 class TestBuffer(unittest.TestCase):
 	def setUp(self):
 		self.s = Buffer("abcd")
