@@ -131,7 +131,8 @@ def _merge_offsets(offsetlist):
 	there is no overlap."""
 	#courtesy https://stackoverflow.com/questions/5679638/
 	#merging-a-list-of-time-range-tuples-that-have-overlapping-time-ranges
-
+	if len(offsetlist) == 0:
+		return offsetlist
 	# change the map from (offset, len) to (start, stop)
 	initialrange = map(lambda (x,y):(x,x+y), offsetlist)
 	i = sorted(set([tuple(sorted(x)) for x in initialrange]))
@@ -233,6 +234,25 @@ def bindifftable(d1, d2):
 	elif len(d1) > totallen:
 		raise Exception("cannot shrink in patches")
 	return table 
+
+def bingrep(d, patterns, linesbefore=0, linesafter=0, output="print"):
+	offsets = all_occurences(d, patterns, merged = True)
+	parts = []
+#	print offsets
+	for start, stop in offsets:
+		stop = start + stop
+		start = (start & ~0xf) - (linesbefore * 16)
+		if start < 0: start = 0
+		stop = (stop & ~0xf) + (linesafter +1) * 16
+#		print (start, stop)
+		parts.append((start, stop - start))
+	# Remerge the parts, because there might be some new overlaps
+	parts = _merge_offsets(parts)
+	First = False
+	for start, l in parts:
+		hexdump(d[start:start+l], highlight=patterns, printoffset=start)
+		if len(parts) > 1 and parts[-1] != (start, l):
+			print " --"
 
 # attempt to do sorta mutable strings
 class Buffer(object):

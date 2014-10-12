@@ -104,6 +104,7 @@ class TestHexdump(unittest.TestCase):
 		self.assertEqual(_merge_offsets([(0,6),(3,1)]), [(0,6)])
 		self.assertEqual(_merge_offsets([(4,1),(5,1)]), [(4,2)])
 		self.assertEqual(_merge_offsets([(1,2),(2,1),(3,1)]), [(1,3)])
+		self.assertEqual(_merge_offsets([]), [])
 
 class TestBuffer(unittest.TestCase):
 	def setUp(self):
