@@ -238,6 +238,7 @@ def bindifftable(d1, d2):
 def bingrep(d, patterns, linesbefore=0, linesafter=0, output="print"):
 	offsets = all_occurences(d, patterns, merged = True)
 	parts = []
+	out = ""
 #	print offsets
 	for start, stop in offsets:
 		stop = start + stop
@@ -250,9 +251,15 @@ def bingrep(d, patterns, linesbefore=0, linesafter=0, output="print"):
 	parts = _merge_offsets(parts)
 	First = False
 	for start, l in parts:
-		hexdump(d[start:start+l], highlight=patterns, printoffset=start)
+		r = hexdump(d[start:start+l], highlight=patterns, printoffset=start, output=output)
+		if (output == "string"):
+			out += r
 		if len(parts) > 1 and parts[-1] != (start, l):
 			print " --"
+	if output == "string":
+		return out
+	else:
+		return len(offsets) != 0
 
 # attempt to do sorta mutable strings
 class Buffer(object):

@@ -10,15 +10,22 @@ def main():
 	parser.add_argument('-A', help='Show LINES lines of context after', metavar="LINES")
 	parser.add_argument('files', nargs='*', metavar='FILE')
 	args = parser.parse_args()
-	data=open(args.files[0]).read()
-	patterns = map(cdecode, args.pattern)
 	before = 0
 	after = 0
 	if args.A != None:
 		after = int(args.A)
 	if args.B != None:
 		before = int(args.B)
-	bingrep(data, patterns=patterns, linesbefore = before, linesafter=after)	
+	patterns = map(cdecode, args.pattern)
+
+	for f in args.files:
+		if (len(args.files) > 1):
+			print "%s:"%(f)
+		data=open(f).read()
+		found = bingrep(data, patterns=patterns, linesbefore = before, linesafter=after)
+		if not found:
+			print "No match in %s"%(f)
+		
 
 if __name__ == '__main__':
 	main()
