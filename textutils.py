@@ -300,3 +300,6 @@ class Buffer(object):
 		return self.s.decode(x)
 	def join(self, x, y):
 		return self.s.join(x, y)
+	def find(self, sub, start=None, end=None):
+		return self.s.find(sub, start, end)
+
