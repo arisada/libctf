@@ -33,6 +33,15 @@ class TestCrypto(unittest.TestCase):
 		y = aes_cbc(x, self.key, decrypt = True, IV=self.IV)
 		self.assertEqual(self.cleartext, y)
 		self.assertNotEqual(x, self.cleartext)
+	def test_xor(self):
+		x = xor(data="AAAA", key="AAAA")
+		self.assertEqual(x, "\x00" * 4)
+		x = xor(data="A", key="AAAA")
+		self.assertEqual(x, "\x00")
+		x = xor(data="AAAA", key="A")
+		self.assertEqual(x, "\x00"*4)
+		x = xor(data="AAAA", key="AAAAZZZZZZZZZZZ")
+		self.assertEqual(x, "\x00"*4)
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):

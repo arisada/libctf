@@ -24,3 +24,8 @@ def aes(data, key, IV="", decrypt=False, mode=Crypto.Cipher.AES.MODE_ECB):
 def aes_cbc(data, key, IV, decrypt=False):
 	return aes(data, key, IV=IV, decrypt=decrypt, mode=Crypto.Cipher.AES.MODE_CBC)
 
+
+def xor(data, key):
+	"""Xor data with a repeated key"""
+	paddedkey = key * (len(data)/len(key) + 1)
+	return "".join(map(lambda (x,y):chr(ord(x)^ord(y)), zip(data,paddedkey)))
