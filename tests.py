@@ -49,6 +49,10 @@ class TestPack(unittest.TestCase):
 		self.assertRaises(TypeError, cdecode, "xxxx\\x4z4141")
 		self.assertRaises(TypeError, cdecode, "xxxx\\")
 		self.assertRaises(TypeError, cdecode, "xxxx\\z")
+	def test_tocdeclaration(self):
+		orig = "ABCD"
+		encoded = 'uint8_t name[4] = \n\t"\\x41\\x42\\x43\\x44";\n'
+		self.assertEqual(tocdeclaration("name",orig), encoded)
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):

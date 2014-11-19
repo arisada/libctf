@@ -45,6 +45,20 @@ def cdecode(s):
 		ret += s[i+1:i+3].decode("hex")
 		i += 3
 	return ret
+
+def chunkstring(string, length):
+	#split a string by length
+	return (string[0+i:length+i] for i in range(0, len(string), length))
+
+def tocdeclaration(name, value, type="uint8_t", indent="\t", width=60):
+	out = "%s %s[%d] = \n"%(type, name, len(value))
+	s = cencode(value).replace('"',"")
+	for i in chunkstring(s, width):
+		out += indent + '"' + i + '"\n'
+	#add the ; at the end but before \n
+	out = out[:-1] + ';\n'
+	return out
+
 def __isprintable__(c):
 	val = ord(c)
 	if(val >= 0x20 and val < 0x80):
