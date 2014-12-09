@@ -162,6 +162,22 @@ def _merge_offsets(offsetlist):
 		else:
 			pass
 	return map(lambda (x,y):(x,y-x), f)
+def in_range(a,b):
+	"""Return true if the two tuple parameters (begin, end) overlap"""
+	a0, an = a
+	b0, bn = b
+	#   [AAAAAAAAA]
+	#  BBBBBB          1
+	#       BBB        2
+	#           BBBBBB 3
+	#   BBBBBBBBBBBBB  4
+	if b0 >= a0 and b0 < an:
+		#2,3,4
+		return True
+	if b0 <= a0 and bn > a0:
+		#1,4
+		return True
+	return False
 
 def hexdump(data, highlight = None, output="print", printoffset=0):
 	"""output hexdump data with highlight on strings in highlight list"""

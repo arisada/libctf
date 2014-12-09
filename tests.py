@@ -119,6 +119,22 @@ class TestHexdump(unittest.TestCase):
 		self.assertEqual(_merge_offsets([(1,2),(2,1),(3,1)]), [(1,3)])
 		self.assertEqual(_merge_offsets([]), [])
 
+class TestInrange(unittest.TestCase):
+	def test_inrange(self):
+		testset = [
+			[(0,1),(1,2), False],
+			[(0,1),(0,2), True],
+			[(0,1),(0,1), True],
+			[(0,1),(0,0), True],
+			[(0,1),(3,4), False],
+			[(0,10), (5,10), True],
+			[(0,10), (5,9), True],
+			[(5,10), (4,6), True]
+		]
+		for a,b,t in testset:
+			self.assertEqual(in_range(a,b), t)
+			self.assertEqual(in_range(b,a), t)
+
 class TestBuffer(unittest.TestCase):
 	def setUp(self):
 		self.s = Buffer("abcd")
