@@ -59,6 +59,10 @@ class TestCrypto(unittest.TestCase):
 		x = {'a':1, 'b':2, 'c':0, 'd':-1}
 		y = sort_by_key(x)
 		self.assertEqual(y, [('d',-1), ('c', 0), ('a', 1), ('b', 2)])
+	def test_hamming(self):
+		x = "this is a test"
+		y = "wokka wokka!!!"
+		self.assertEqual(hamming(x,y), 37)
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):

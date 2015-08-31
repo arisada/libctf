@@ -77,3 +77,24 @@ class distributions(object):
 		# http://www.data-compression.com/english.html defines space to be 0.1918
 		letters_with_space = {k:v*(1-0.1918) for k,v in letters.items()}
 		letters_with_space[' '] = 0.1918
+
+_bitcount_lookup = [
+	0, 1, 1, 2, 1, 2, 2, 3,
+	1, 2, 2, 3, 2, 3, 3, 4
+]
+
+def count_bits_set(x):
+	"""count how many bits are set in the x string"""
+	sum = 0
+	for i in x:
+		a, b = ord(i) & 0x0f, (ord(i) & 0xf0) >> 4
+		sum += _bitcount_lookup[a] + _bitcount_lookup[b]
+	return sum
+
+def hamming(a,b):
+	"""return the hamming distance between a and b"""
+	sum = 0
+	for i,j in zip(a,b):
+		h = chr(ord(i) ^ ord(j))
+		sum += count_bits_set(h)
+	return sum
