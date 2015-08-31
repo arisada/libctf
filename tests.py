@@ -65,11 +65,11 @@ class TestPack(unittest.TestCase):
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
-		s = "A" * 15 + "HELLO" + "B" * 16
+		s = "A" * 15 + "HELLO" + "B" * 16 + "\x00"
 		out = hexdump(s, "HELLO", output="string")
 		expected = "00000000: 41 41 41 41 41 41 41 41  41 41 41 41 41 41 41 48  AAAAAAAAAAAAAAAH\n" + \
 			"00000010: 45 4c 4c 4f 42 42 42 42  42 42 42 42 42 42 42 42  ELLOBBBBBBBBBBBB\n" + \
-			"00000020: 42 42 42 42                                       BBBB            \n"
+			"00000020: 42 42 42 42 00                                    BBBB.           \n"
 
 		out = out.replace('\033[91m', "").replace('\033[0m',"")
 		self.assertEqual(out, expected)
