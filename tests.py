@@ -42,6 +42,12 @@ class TestCrypto(unittest.TestCase):
 		self.assertEqual(x, "\x00"*4)
 		x = xor(data="AAAA", key="AAAAZZZZZZZZZZZ")
 		self.assertEqual(x, "\x00"*4)
+	def test_distribution(self):
+		sum = 0.0
+		for i in distributions.english.letters.values():
+			sum += i
+		epsilon = 1.0e-3
+		self.assertTrue(sum > 1.0 - epsilon and sum < 1.0 + epsilon)
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):
