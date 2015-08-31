@@ -42,12 +42,19 @@ class TestCrypto(unittest.TestCase):
 		self.assertEqual(x, "\x00"*4)
 		x = xor(data="AAAA", key="AAAAZZZZZZZZZZZ")
 		self.assertEqual(x, "\x00"*4)
-	def test_distribution(self):
+	def test_distribution_english_letters(self):
 		sum = 0.0
 		for i in distributions.english.letters.values():
 			sum += i
 		epsilon = 1.0e-3
 		self.assertTrue(sum > 1.0 - epsilon and sum < 1.0 + epsilon)
+	def test_distribution_english_letters_space(self):
+		sum = 0.0
+		for i in distributions.english.letters_with_space.values():
+			sum += i
+		epsilon = 1.0e-3
+		self.assertTrue(sum > 1.0 - epsilon and sum < 1.0 + epsilon)
+
 	def test_sort_by_key(self):
 		x = {'a':1, 'b':2, 'c':0, 'd':-1}
 		y = sort_by_key(x)

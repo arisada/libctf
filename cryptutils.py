@@ -74,3 +74,6 @@ class distributions(object):
 			'y':0.01974,
 			'z':0.00074,
 		}
+		# http://www.data-compression.com/english.html defines space to be 0.1918
+		letters_with_space = {k:v*(1-0.1918) for k,v in letters.items()}
+		letters_with_space[' '] = 0.1918
