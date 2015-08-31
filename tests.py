@@ -63,6 +63,11 @@ class TestCrypto(unittest.TestCase):
 		x = "this is a test"
 		y = "wokka wokka!!!"
 		self.assertEqual(hamming(x,y), 37)
+	def test_count_bits(self):
+		x = "ABCDEFG"
+		y = "\x00" * len(x)
+		h = hamming(x, y)
+		self.assertEqual(count_bits_set(x), h)
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):

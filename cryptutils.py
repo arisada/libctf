@@ -95,6 +95,6 @@ def hamming(a,b):
 	"""return the hamming distance between a and b"""
 	sum = 0
 	for i,j in zip(a,b):
-		h = chr(ord(i) ^ ord(j))
-		sum += count_bits_set(h)
+		h = ord(i) ^ ord(j)
+		sum += _bitcount_lookup[h & 0x0f] + _bitcount_lookup[h >> 4]
 	return sum
