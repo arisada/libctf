@@ -48,6 +48,10 @@ class TestCrypto(unittest.TestCase):
 			sum += i
 		epsilon = 1.0e-3
 		self.assertTrue(sum > 1.0 - epsilon and sum < 1.0 + epsilon)
+	def test_sort_by_key(self):
+		x = {'a':1, 'b':2, 'c':0, 'd':-1}
+		y = sort_by_key(x)
+		self.assertEqual(y, [('d',-1), ('c', 0), ('a', 1), ('b', 2)])
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):

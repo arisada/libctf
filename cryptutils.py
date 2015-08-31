@@ -30,6 +30,19 @@ def xor(data, key):
 	paddedkey = key * (len(data)/len(key) + 1)
 	return "".join(map(lambda (x,y):chr(ord(x)^ord(y)), zip(data,paddedkey)))
 
+def sort_by_key(data):
+	"""Sort a dictionary from values and return an array of (key, value) tuples"""
+	def cmp(x, y):
+		if (x[1] == y[1]):
+			return 0
+		elif (x[1] > y[1]):
+			return 1
+		else:
+			return -1
+	array = [(k, data[k]) for k in data.keys()]
+	array.sort(cmp = cmp)
+	return array
+
 class distributions(object):
 	class english(object):
 		#source https://en.wikipedia.org/wiki/Letter_frequency
