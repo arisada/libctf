@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import socket
 import select
+import sys
 
 class TimeoutException(Exception):
 	pass
@@ -95,6 +96,21 @@ class Socket(object):
 	def close(self):
 		self.s.close()
 		del self.s
+
+	def interactConsole(self):
+		while True:
+			rlist = (self.s, sys.stdin)
+			wlist = ()
+			xlist = (self.s, sys.stdin)
+			rlist,wlist,xlist = select.select(rlist, wlist, xlist, 30)
+			if(len(xlist) > 0):
+				break
+			if self.s in rlist:
+				data = self.recv()
+				sys.stdout.write(data)
+			if sys.stdin in rlist:
+				data = sys.stdin.readline()
+				self.send(data)
 
 class BindSocket(object):
 	s = None
