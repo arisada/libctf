@@ -46,6 +46,7 @@ class Socket(object):
 		ret = self.s.recv(length)
 		if len(ret) == 0:
 			self.eof = True
+		return ret
 	def read_block(self, length, timeout=None):
 		"""Blocking read of length bytes"""
 		while len(self.readbuffer) < length and not self.eof:
