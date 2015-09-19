@@ -96,6 +96,19 @@ class Socket(object):
 	def close(self):
 		self.s.close()
 		del self.s
+	def expect(self, data, timeout=None):
+		"""loop until data is found on the socket"""
+		s=""
+		while s.find(data) < 0:
+			r = self.recv(timeout=timeout)
+			if r != None:
+				s+=r
+			else:
+				return None
+		if s.find(data) >= 0:
+			self.readbuffer=s[s.find(data) + len(data):]
+			return s[:s.find(data) + len(data)]
+		return None
 
 	def interactConsole(self):
 		while True:
