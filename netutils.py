@@ -40,7 +40,7 @@ class Socket(object):
 			self.readbuffer = self.readbuffer[l:]
 			return ret
 		if self.eof:
-			return 0
+			return None
 		if length == 0:
 			length = 4096
 		self.__wait_recv__(timeout)
@@ -107,6 +107,8 @@ class Socket(object):
 				break
 			if self.s in rlist:
 				data = self.recv()
+				if data == None:
+					break
 				sys.stdout.write(data)
 			if sys.stdin in rlist:
 				data = sys.stdin.readline()
