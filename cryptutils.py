@@ -98,3 +98,31 @@ def hamming(a,b):
 		h = ord(i) ^ ord(j)
 		sum += _bitcount_lookup[h & 0x0f] + _bitcount_lookup[h >> 4]
 	return sum
+
+class keyspace(object):
+	letters="abcdefghijklmnopqrstuvwxyz"
+	upperletters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	allletters=letters+upperletters
+	ciphers="0123456789"
+	lettersciphers=letters+ciphers
+	alllettersciphers=allletters+ciphers
+	specials='''!_&~/*-+\\<>$^%[]{}#"\'|:,?.='''
+	allprintable=alllettersciphers + specials
+	@staticmethod
+	def generate(space, size):
+		"""generator that yeld keys part of the keyspace"""
+		state = [0] * size
+		max = len(space) - 1
+		finished = False
+		while not finished:
+			#print state
+			s = map(lambda x: space[x], state)
+			yield "".join(s)
+			for i in xrange(size-1, -1, -1):
+				if i == 0 and state[i] == max:
+					finished = True
+				if state[i] == max:
+					state[i] = 0
+				else:
+					state[i] = state[i] + 1
+					break
