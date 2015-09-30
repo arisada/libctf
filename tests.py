@@ -68,6 +68,18 @@ class TestCrypto(unittest.TestCase):
 		y = "\x00" * len(x)
 		h = hamming(x, y)
 		self.assertEqual(count_bits_set(x), h)
+	def test_RSA(self):
+		p = 22307
+		q = 93179
+		pub = RSA(n=p*q, e=65537)
+		priv = RSA(p=p, q=q, e=65537)
+		msg = 31337
+		sig = priv.sign(msg)
+		self.assertTrue(pub.verify(msg, sig))
+		self.assertFalse(pub.verify(msg, sig + 1))
+
+		cipher = pub.encrypt(msg)
+		self.assertEquals(priv.decrypt(cipher), msg)
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):

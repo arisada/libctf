@@ -126,3 +126,59 @@ class keyspace(object):
 				else:
 					state[i] = state[i] + 1
 					break
+
+def extendedEuclid(a, b):
+    """return a tuple of three values: x, y and z, such that x is
+    the GCD of a and b, and x = y * a + z * b"""
+    if a == 0:
+        return b, 0, 1
+    else:
+        g, y, x = extendedEuclid(b % a, a)
+        return g, x - (b // a) * y, y
+
+def modInv(a, m):
+    """returns the multiplicative inverse of a in modulo m as a
+       positive value between zero and m-1"""
+    # notice that a and m need to co-prime to each other.
+    linearCombination = extendedEuclid(a, m)
+    return linearCombination[1] % m
+
+def modExp(a, d, n):
+    """returns a ** d (mod n)"""
+    return pow(a, d, n)
+
+class RSA(object):
+	private=False
+	phi=None
+	n=None
+	p=None
+	q=None
+	e=None
+	d=None
+	def __init__(self, n=None, p=None, q=None, e=None):
+		if n==None and (p==None or q==None):
+			raise Exception("At least n or p+q should be provided")
+		if(e == None):
+			raise Exception("e should be provided")
+		self.n=n
+		self.p=p
+		self.q=q
+		self.e=e
+		if (self.n == None):
+			self.n = p * q
+		else:
+			if p is not None and q is not None and self.n != p*q:
+				raise Exception("n doesn't match p*q")
+		if p != None and q != None:
+			self.private = True
+			self.phi = (p-1)*(q-1)
+			self.d = modInv(self.e, self.phi)
+	def sign(self, message):
+		signature = modExp(message, self.d, self.n)
+		return signature
+	def verify(self, message, signature):
+		return message == modExp(signature, self.e, self.n)
+	def encrypt(self, message):
+		return modExp(message, self.e, self.n)
+	def decrypt(self, crypted):
+		return modExp(crypted, self.d, self.n)
