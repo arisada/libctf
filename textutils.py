@@ -61,7 +61,7 @@ def tocdeclaration(name, value, type="uint8_t", indent="\t", width=60):
 
 def __isprintable__(c):
 	val = ord(c)
-	if(val >= 0x20 and val < 0x80):
+	if(val >= 0x20 and val < 0x7f):
 		return True
 	return False
 
