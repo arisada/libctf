@@ -4,6 +4,7 @@ from textutils import *
 from textutils import _merge_offsets
 from netutils import *
 from cryptutils import *
+from shellcode import *
 
 import unittest
 import threading
@@ -289,6 +290,19 @@ class TestBindSocket(unittest.TestCase):
 	def test_timeout(self):
 		s= BindSocket("::",4444)
 		self.assertRaises(TimeoutException, s.accept, 0.2)
+
+class TestShellcode(unittest.TestCase):
+	def test_assemble(self):
+		code = ";" + get_random(8).encode("hex") + "\nret\n"
+		asm = assemble(code)
+		self.assertEqual(asm, "\xc3")
+		#test cache
+		asm = assemble(code)
+		self.assertEqual(asm, "\xc3")
+
+		code = ";" + get_random(8).encode("hex") + "\nnotvalid eax, eax\n"
+		self.assertRaises(Exception, assemble, code, printerrors=False)
+
 
 if __name__ == '__main__':
     unittest.main()

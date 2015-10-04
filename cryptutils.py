@@ -127,6 +127,13 @@ class keyspace(object):
 					state[i] = state[i] + 1
 					break
 
+def get_random(size):
+	"""Return (size) bytes of secure random data"""
+	try:
+		return open("/dev/urandom").read(size)
+	except Exception:
+		return open("/dev/random").read(size)
+
 def extendedEuclid(a, b):
     """return a tuple of three values: x, y and z, such that x is
     the GCD of a and b, and x = y * a + z * b"""
