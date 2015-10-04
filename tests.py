@@ -174,6 +174,14 @@ class TestInrange(unittest.TestCase):
 			self.assertEqual(in_range(a,b), t)
 			self.assertEqual(in_range(b,a), t)
 
+class TestText(unittest.TestCase):
+	def test_replace(self):
+		s=replace("Hi, folks!", ("Hi","Hello"), ("folks","world"))
+		self.assertEqual(s, "Hello, world!")
+	def test_remove(self):
+		s=remove("Gimme an A, Gimme a B, Gimme an ABC", "ABC", "B", "A")
+		self.assertEqual(s, "Gimme an , Gimme a , Gimme an ")
+
 class TestBuffer(unittest.TestCase):
 	def setUp(self):
 		self.s = Buffer("abcd")

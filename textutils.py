@@ -140,6 +140,20 @@ def all_occurences(data, patterns, merged=False):
 		offsets = _merge_offsets(offsets)
 	return offsets
 
+def replace(s, *args):
+	"""replace all substrings in string with replacements.
+	usage: replace("Hi, folks!", ("Hi","Hello"), ("folks","world"))"""
+	for w,r in args:
+		s = s.replace(w,r)
+	return s
+
+def remove(s, *args):
+	"""remove all substring in string, starting from the left and
+	to the right."""
+	for w in args:
+		s = s.replace(w,"")
+	return s
+
 def _merge_offsets(offsetlist):
 	"""merge a list of offsets so they are the minimal set and
 	there is no overlap."""
