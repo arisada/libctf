@@ -8,7 +8,7 @@ from shellcode import *
 
 import unittest
 import threading
-
+import subprocess
 
 class TestCrypto(unittest.TestCase):
 	cleartext = "A"*16
@@ -300,6 +300,22 @@ class TestBindSocket(unittest.TestCase):
 		self.assertRaises(TimeoutException, s.accept, 0.2)
 
 class TestShellcode(unittest.TestCase):
+	process=None
+	def setUp(self):
+		path = os.path.abspath(__file__)
+		path = os.sep.join((os.path.dirname(path),"tests", "shellcode"))
+		self.process = subprocess.Popen([path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True, cwd=os.path.dirname(path))
+	def tearDown(self):
+		try:
+			self.process.kill()
+		except Exception:
+			pass
+		self.process.wait()
+		self.process=None
+	def send_shellcode(self, asm):
+		self.process.stdin.write(d(len(asm)))
+		self.process.stdin.write(asm)
+		
 	def test_assemble(self):
 		code = ";" + get_random(8).encode("hex") + "\nret\n"
 		asm = assemble(code)
@@ -310,7 +326,34 @@ class TestShellcode(unittest.TestCase):
 
 		code = ";" + get_random(8).encode("hex") + "\nnotvalid eax, eax\n"
 		self.assertRaises(Exception, assemble, code, printerrors=False)
+	def testSyscall(self):
+		asm = Syscall(syscallnumber=1).assemble()
+		asm.encode("hex")
 
+	def testExit(self):
+		asm = Exit(42).assemble()
+		self.send_shellcode(asm)
+		rc = self.process.wait()
+		self.assertEqual(rc, 42)
+	def testWrite(self):
+		asm = Write(1, "Hello, world!").assemble()
+		asm += Exit(0).assemble()
+		self.send_shellcode(asm)
+		data = self.process.stdout.read()
+		self.assertEqual(data, "Hello, world!")
+	def testExecve(self):
+		asm = Execve("/usr/bin/printf","Hello, World!").assemble()
+		asm += Exit(0).assemble()
+		self.send_shellcode(asm)
+		data = self.process.stdout.read()
+		self.assertEqual(data, "Hello, World!")
+	def testRead(self):
+		asm = Read(0, "esp", len("Hello, World!")).assemble()
+		asm += Write(1, "esp", len("Hello, World!")).assemble()
+		self.send_shellcode(asm)
+		self.process.stdin.write("Hello, World!")
+		data = self.process.stdout.read()
+		self.assertEqual(data, "Hello, World!")
 
 if __name__ == '__main__':
     unittest.main()
