@@ -80,11 +80,23 @@ class Context(object):
 		self.state = {}
 
 class ShellcodeSnippet(object):
-	def __init__(self, ctx=None):
-		if ctx is not None:
-			self.ctx = ctx
+	minparams = 0
+	maxparams = 0
+	nparams = None
+	args = None
+	ctx=None
+	def __init__(self, *args, **kwargs):
+		if "ctx" in kwargs:
+			self.ctx = kwargs["ctx"]
 		else:
 			self.ctx = Context()
+		if self.nparams is not None:
+			if len(args) != self.nparams:
+				raise Exception("Incorrect parameters number (given %d, expected %d)"
+					%(len(args), self.nparams))
+		elif len(args) > self.maxparams or len(args) < self.minparams:
+			raise Exception("Incorrect parameters number (given %d, expected [%d-%d])"%(len(args), self.minparams, self.maxparams))
+		self.args = args
 	def assemble_x86(self):
 		return None
 	def assemble_amd64(self):
@@ -135,38 +147,32 @@ class ShellcodeSnippet(object):
 		return self.assemble()
 
 class PushArray(ShellcodeSnippet):
-	array = None
-	dest = None
-	def __init__(self, array, dest, ctx=None):
-		"""push an array on the stack and return its value in dest register"""
-		ShellcodeSnippet.__init__(self, ctx=ctx)
-		self.array = array
-		self.dest = dest
+	"""push an array on the stack and return its value in dest register
+	PushArray(array, dest, ctx=ctx)"""
+	nparams = 2
 	def assemble_x86(self):
 		code = ""
 		#make a copy
-		array = list(self.array)
-		self.ctx.state[self.dest]=REG_RESERVED
+		array = list(self.args[0])
+		dest = self.args[1]
+		self.ctx.state[dest]=REG_RESERVED
 		array.reverse()
 		for v in array:
 			if v in all_registers_x86:
 				code += "push %s\n"%(v)
 			else:
 				code += "push %d\n"%(v)
-		code += "mov %s, esp\n"%(self.dest)
+		code += "mov %s, esp\n"%(dest)
 		return assemble(code, cpu=self.ctx.cpu)
 
 class PushString(ShellcodeSnippet):
-	string = None
-	dest = None
-	def __init__(self, string, dest, ctx=None):
-		"""push a string on the stack and return its value in dest register"""
-		ShellcodeSnippet.__init__(self, ctx=ctx)
-		self.string = string
-		self.dest = dest
+	"""push a string on the stack and return its value in dest register
+	PushString(string, dest, ctx=ctx)"""
+	nparams = 2
 	def assemble_x86(self):
+		string, dest = self.args
 		#push string on stack
-		values = chunkstring(self.string, 4)
+		values = chunkstring(string, 4)
 		# pad the strings with zero
 		values = map(lambda x: x+ "\x00" * (4-len(x)), values)
 		# end the string with zero if it's not null terminated already
@@ -174,15 +180,15 @@ class PushString(ShellcodeSnippet):
 			values += [0]
 		#convert to integer
 		values = map(lambda x: struct.unpack("<I", x)[0], values)
-		asm = PushArray(values, self.dest, ctx=self.ctx).assemble()
+		asm = PushArray(values, dest, ctx=self.ctx).assemble()
 		return asm
 
 class SetRegisters(ShellcodeSnippet):
-	args = None
-	def __init__(self, args, ctx=None):
-		"""set data in registers. args is an array of (register, data) tupples"""
-		super(SetRegisters, self).__init__(ctx=ctx)
-		self.args = args
+	"""set data in registers with an array of (register, data) tupples
+	SetRegisters( ("eax",0), ("ebx", "edx"), ctx=ctx)
+	"""
+	minparams = 1
+	maxparams = 100
 	def assemble_x86(self):
 		asm = ""
 		for reg, value in self.args:
@@ -194,9 +200,9 @@ class SetRegisters(ShellcodeSnippet):
 					continue
 				asm += assemble("mov %s, %s\n"%(reg, value), cpu=self.ctx.cpu)
 			elif type(value) == str:
-				asm += PushString(string=value, dest=reg, ctx=self.ctx).assemble()
+				asm += PushString(value, reg, ctx=self.ctx).assemble()
 			elif type(value) == list or type(value) == tuple:
-				asm += PushArray(array=value, dest=reg, ctx=self.ctx).assemble()
+				asm += PushArray(value, reg, ctx=self.ctx).assemble()
 			elif value == 0:
 				asm += assemble("xor %s,%s\n"%(reg, reg), cpu=self.ctx.cpu)
 			elif value > 0 and value < 0x100:
@@ -208,82 +214,73 @@ class SetRegisters(ShellcodeSnippet):
 				self.ctx.state[reg] = value
 		return asm
 
+
 class Syscall(ShellcodeSnippet):
-	syscallnumber=0
-	args = None
-	def __init__(self, syscallnumber, ctx=None, args=[]):
-		super(Syscall, self).__init__(ctx=ctx)
-		self.syscallnumber = syscallnumber
-		self.args = args
+	"""Trigger a syscall. 
+	Syscall(linux_x86_syscalls["exit"], 0, ctx=ctx)"""
+	minparams=1
+	maxparams=7
 	def assemble_linux_x86(self):
-		asm = SetRegisters(
-				zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"],
-					[self.syscallnumber] + list(self.args)
-				),
-				ctx=self.ctx
-			).assemble()
+		params = zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"],
+					list(self.args)) 
+		asm = SetRegisters(*params, ctx=self.ctx).assemble()
 			
 		asm += assemble("int 0x80\n", cpu=self.ctx.cpu)
 		self.ctx.state["eax"]=REG_UNDEFINED
 		return asm
 
 class Exit(ShellcodeSnippet):
-	def __init__(self, errcode=0,ctx=None):
-		super(Exit, self).__init__(ctx=ctx)
-		self.errcode=errcode
+	"""Exit(exitcode, ctx=ctx)"""
+	maxparams=1
 	def assemble_linux_x86(self):
-		return Syscall(ctx=self.ctx, syscallnumber=linux_x86_syscalls["exit"],
-			args=[self.errcode]).assemble()
+		if len(self.args) > 0:
+			exitcode=self.args[0]
+		else:
+			exitcode = 0
+		return Syscall(linux_x86_syscalls["exit"], exitcode, 
+			ctx=self.ctx).assemble()
 
 class Write(ShellcodeSnippet):
-	fd = None
-	data = None
-	size = None
-	def __init__(self, fd, data, size=0, ctx=None):
-		super(Write, self).__init__(ctx=ctx)
-		self.fd = fd
-		self.data = data
-		self.size = size
+	"""Write(fd, data, size)
+	data can be a string, a register or an address"""
+	minparams = 2
+	maxparams = 3
 	def assemble_linux_x86(self):
-		if type(self.data)==str and not self.data in all_registers_x86:
-			size = len(self.data)
+		fd, data = self.args[:2]
+		if type(data)==str and not data in all_registers_x86:
+			size = len(data)
 		else:
-			size = self.size
-		return Syscall(ctx=self.ctx, syscallnumber=linux_x86_syscalls["write"],
-			args=[self.fd, self.data, size]).assemble()
+			size = self.args[2]
+		return Syscall(linux_x86_syscalls["write"],
+			fd, data, size, ctx=self.ctx).assemble()
 
 class Read(ShellcodeSnippet):
-	fd = None
-	data = None
-	size = None
-	def __init__(self, fd, data, size, ctx=None):
-		ShellcodeSnippet.__init__(self, ctx=ctx)
-		self.fd = fd
-		self.data = data
-		self.size = size
+	"""Read(fd, data, size)
+	data can be a register or an address"""
+	nparams=3
 	def assemble_linux_x86(self):
-		return Syscall(syscallnumber=linux_x86_syscalls["read"],
-			args=[self.fd, self.data, self.size], ctx=self.ctx).assemble()
+		fd, data, size = self.args
+		return Syscall(linux_x86_syscalls["read"],
+			fd, data, size, ctx=self.ctx).assemble()
 
 class Execve(ShellcodeSnippet):
-	filename = None
-	arg = None
-	def __init__(self, filename, arg=None, ctx=None):
-		ShellcodeSnippet.__init__(self, ctx=ctx)
-		self.filename = filename
-		self.arg = arg
+	"""Execve(filename, param1, ..., ctx=self.ctx)
+	filename and params are strings. argv[0] set to filename"""
+	minparams=1
+	maxparams=2
 	def assemble_linux_x86(self):
+		filename = self.args[0]
 		asm = ""
-		asm += PushString(self.filename, "ebx", ctx=self.ctx).assemble()
+		asm += PushString(filename, "ebx", ctx=self.ctx).assemble()
 		#environ
 		asm += PushArray([0], "edx", ctx=self.ctx).assemble()
 		#arg
-		if self.arg != None:
-			asm += PushString(self.arg, "ecx", ctx=self.ctx).assemble()
+		if len(self.args) > 1:
+			asm += PushString(self.args[1], "ecx", ctx=self.ctx).assemble()
 			asm += PushArray(["ebx", "ecx", 0], "ecx", ctx=self.ctx).assemble()
 		else:
 			asm += PushArray(["ebx", 0], "ecx", ctx=self.ctx).assemble()
-		asm += Syscall(syscallnumber=linux_x86_syscalls["execve"], 
-			args=["ebx","ecx","edx"], ctx=self.ctx).assemble()
+		asm += Syscall(linux_x86_syscalls["execve"], 
+			"ebx", "ecx", "edx", ctx=self.ctx).assemble()
 		return asm
 

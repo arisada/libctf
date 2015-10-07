@@ -327,7 +327,7 @@ class TestShellcode(unittest.TestCase):
 		code = ";" + get_random(8).encode("hex") + "\nnotvalid eax, eax\n"
 		self.assertRaises(Exception, assemble, code, printerrors=False)
 	def testSyscall(self):
-		asm = Syscall(syscallnumber=1).assemble()
+		asm = Syscall(1).assemble()
 		asm.encode("hex")
 
 	def testExit(self):
