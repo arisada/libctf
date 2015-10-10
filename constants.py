@@ -353,3 +353,15 @@ linux_x86_syscalls = {
 	"renameat2": 353,
 	"seccomp": 354,
 }
+
+syscalls = {
+	"x86" : {
+	"linux" : linux_x86_syscalls
+	},
+	"amd64" : {
+	"linux" : None
+	},
+	"arm" : {
+	"linux" : None
+	}
+}

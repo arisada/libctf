@@ -67,6 +67,7 @@ all_registers_x86 = ["eax","ebx","ecx","edx","esi","edi","ebp","esp"]
 class Context(object):
 	cpu = None
 	os = None
+	syscalls = None
 	state = None
 	def __init__(self, cpu=None, OS=None):
 		if cpu is not None:
@@ -77,6 +78,7 @@ class Context(object):
 			self.os = OS
 		else:
 			self.os = config.os()
+		self.syscalls=syscalls[self.cpu][self.os]
 		self.state = {}
 
 class ShellcodeSnippet(object):
@@ -97,52 +99,55 @@ class ShellcodeSnippet(object):
 		elif len(args) > self.maxparams or len(args) < self.minparams:
 			raise Exception("Incorrect parameters number (given %d, expected [%d-%d])"%(len(args), self.minparams, self.maxparams))
 		self.args = args
-	def assemble_x86(self):
+	def generate_x86(self):
 		return None
-	def assemble_amd64(self):
+	def generate_amd64(self):
 		return None
-	def assemble_arm(self):
+	def generate_arm(self):
 		return None
-	def assemble_linux_x86(self):
+	def generate_linux_x86(self):
 		return None
-	def assemble_linux_amd64(self):
+	def generate_linux_amd64(self):
 		return None
-	def assemble_linux_arm(self):
+	def generate_linux_arm(self):
 		return None
-	def assemble(self):
+	def generate(self):
 		for case in switch(self.ctx.cpu):
 			if case("x86"):
-				asm = self.assemble_x86()
+				asm = self.generate_x86()
 				if asm is not None:
 					return asm
 				break
 			if case("amd64"):
-				asm = self.assemble_amd64()
+				asm = self.generate_amd64()
 				if asm is not None:
 					return asm
 				break
 			if case("arm"):
-				asm = self.assemble_arm()
+				asm = self.generate_arm()
 				if asm is not None:
 					return asm
 				break
 		#fall through on more specialized assemblers
 		for case in switch(self.ctx.os + "/" + self.ctx.cpu):
 			if case("linux/x86"):
-				asm = self.assemble_linux_x86()
+				asm = self.generate_linux_x86()
 				if asm is not None:
 					return asm
 			if case("linux/amd64"):
-				asm = self.assemble_linux_amd64()
+				asm = self.generate_linux_amd64()
 				if asm is not None:
 					return asm
 			if case("linux/arm"):
-				asm = self.assemble_linux_arm()
+				asm = self.generate_linux_arm()
 				if asm is not None:
 					return asm
 			if case():
 				raise NotSupportedException(cpu=self.ctx.cpu, OS=self.ctx.os)
-
+	def assemble(self):
+		src = self.generate()
+		asm = assemble(src, cpu=self.ctx.cpu)
+		return asm
 	def __str__(self):
 		return self.assemble()
 
@@ -150,7 +155,7 @@ class PushArray(ShellcodeSnippet):
 	"""push an array on the stack and return its value in dest register
 	PushArray(array, dest, ctx=ctx)"""
 	nparams = 2
-	def assemble_x86(self):
+	def generate_x86(self):
 		code = ""
 		#make a copy
 		array = list(self.args[0])
@@ -163,13 +168,13 @@ class PushArray(ShellcodeSnippet):
 			else:
 				code += "push %d\n"%(v)
 		code += "mov %s, esp\n"%(dest)
-		return assemble(code, cpu=self.ctx.cpu)
+		return code
 
 class PushString(ShellcodeSnippet):
 	"""push a string on the stack and return its value in dest register
 	PushString(string, dest, ctx=ctx)"""
 	nparams = 2
-	def assemble_x86(self):
+	def generate_x86(self):
 		string, dest = self.args
 		#push string on stack
 		values = chunkstring(string, 4)
@@ -180,8 +185,8 @@ class PushString(ShellcodeSnippet):
 			values += [0]
 		#convert to integer
 		values = map(lambda x: struct.unpack("<I", x)[0], values)
-		asm = PushArray(values, dest, ctx=self.ctx).assemble()
-		return asm
+		code = PushArray(values, dest, ctx=self.ctx).generate()
+		return code
 
 class SetRegisters(ShellcodeSnippet):
 	"""set data in registers with an array of (register, data) tupples
@@ -189,8 +194,8 @@ class SetRegisters(ShellcodeSnippet):
 	"""
 	minparams = 1
 	maxparams = 100
-	def assemble_x86(self):
-		asm = ""
+	def generate_x86(self):
+		code = ""
 		for reg, value in self.args:
 			if value == REG_UNDEFINED:
 				continue
@@ -198,89 +203,86 @@ class SetRegisters(ShellcodeSnippet):
 				# mov reg, reg
 				if reg == value:
 					continue
-				asm += assemble("mov %s, %s\n"%(reg, value), cpu=self.ctx.cpu)
+				code += "mov %s, %s\n"%(reg, value)
 			elif type(value) == str:
-				asm += PushString(value, reg, ctx=self.ctx).assemble()
+				code += PushString(value, reg, ctx=self.ctx).generate()
 			elif type(value) == list or type(value) == tuple:
-				asm += PushArray(value, reg, ctx=self.ctx).assemble()
+				code += PushArray(value, reg, ctx=self.ctx).generate()
 			elif value == 0:
-				asm += assemble("xor %s,%s\n"%(reg, reg), cpu=self.ctx.cpu)
+				code += "xor %s,%s\n"%(reg, reg)
 			elif value > 0 and value < 0x100:
-				asm += assemble("push byte %d\npop %s\n"%(value, reg), 
-					cpu=self.ctx.cpu)
+				code += "push byte %d\npop %s\n"%(value, reg)
 			else:
-				asm += assemble("mov %s,%d\n"%(reg, value), cpu=self.ctx.cpu)
+				code += "mov %s,%d\n"%(reg, value)
 			if type(value) == int:
 				self.ctx.state[reg] = value
-		return asm
-
+		return code
 
 class Syscall(ShellcodeSnippet):
 	"""Trigger a syscall. 
 	Syscall(linux_x86_syscalls["exit"], 0, ctx=ctx)"""
 	minparams=1
 	maxparams=7
-	def assemble_linux_x86(self):
+	def generate_linux_x86(self):
 		params = zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"],
 					list(self.args)) 
-		asm = SetRegisters(*params, ctx=self.ctx).assemble()
+		code = SetRegisters(*params, ctx=self.ctx).generate()
 			
-		asm += assemble("int 0x80\n", cpu=self.ctx.cpu)
+		code += "int 0x80\n"
 		self.ctx.state["eax"]=REG_UNDEFINED
-		return asm
+		return code
 
 class Exit(ShellcodeSnippet):
 	"""Exit(exitcode, ctx=ctx)"""
 	maxparams=1
-	def assemble_linux_x86(self):
+	def generate(self):
 		if len(self.args) > 0:
 			exitcode=self.args[0]
 		else:
 			exitcode = 0
-		return Syscall(linux_x86_syscalls["exit"], exitcode, 
-			ctx=self.ctx).assemble()
+		return Syscall(self.ctx.syscalls["exit"], exitcode,
+			ctx=self.ctx).generate()
 
 class Write(ShellcodeSnippet):
 	"""Write(fd, data, size)
 	data can be a string, a register or an address"""
 	minparams = 2
 	maxparams = 3
-	def assemble_linux_x86(self):
+	def generate_linux_x86(self):
 		fd, data = self.args[:2]
 		if type(data)==str and not data in all_registers_x86:
 			size = len(data)
 		else:
 			size = self.args[2]
-		return Syscall(linux_x86_syscalls["write"],
-			fd, data, size, ctx=self.ctx).assemble()
+		return Syscall(self.ctx.syscalls["write"],
+			fd, data, size, ctx=self.ctx).generate()
 
 class Read(ShellcodeSnippet):
 	"""Read(fd, data, size)
 	data can be a register or an address"""
 	nparams=3
-	def assemble_linux_x86(self):
+	def generate(self):
 		fd, data, size = self.args
-		return Syscall(linux_x86_syscalls["read"],
-			fd, data, size, ctx=self.ctx).assemble()
+		return Syscall(self.ctx.syscalls["read"],
+			fd, data, size, ctx=self.ctx).generate()
 
 class Execve(ShellcodeSnippet):
 	"""Execve(filename, param1, ..., ctx=self.ctx)
 	filename and params are strings. argv[0] set to filename"""
 	minparams=1
 	maxparams=2
-	def assemble_linux_x86(self):
+	def generate_linux_x86(self):
 		filename = self.args[0]
-		asm = ""
-		asm += PushString(filename, "ebx", ctx=self.ctx).assemble()
+		code = ""
+		code += PushString(filename, "ebx", ctx=self.ctx).generate()
 		#environ
-		asm += PushArray([0], "edx", ctx=self.ctx).assemble()
+		code += PushArray([0], "edx", ctx=self.ctx).generate()
 		#arg
 		if len(self.args) > 1:
-			asm += PushString(self.args[1], "ecx", ctx=self.ctx).assemble()
-			asm += PushArray(["ebx", "ecx", 0], "ecx", ctx=self.ctx).assemble()
+			code += PushString(self.args[1], "ecx", ctx=self.ctx).generate()
+			code += PushArray(["ebx", "ecx", 0], "ecx", ctx=self.ctx).generate()
 		else:
-			asm += PushArray(["ebx", 0], "ecx", ctx=self.ctx).assemble()
-		asm += Syscall(linux_x86_syscalls["execve"], 
-			"ebx", "ecx", "edx", ctx=self.ctx).assemble()
-		return asm
-
+			code += PushArray(["ebx", 0], "ecx", ctx=self.ctx).generate()
+		code += Syscall(self.ctx.syscalls["execve"],
+			"ebx", "ecx", "edx", ctx=self.ctx).generate()
+		return code
