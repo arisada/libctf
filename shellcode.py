@@ -218,6 +218,8 @@ class SetRegisters(ShellcodeSnippet):
 				self.ctx.state[reg] = value
 		return code
 
+# Common system calls
+
 class Syscall(ShellcodeSnippet):
 	"""Trigger a syscall. 
 	Syscall(linux_x86_syscalls["exit"], 0, ctx=ctx)"""
@@ -265,6 +267,17 @@ class Read(ShellcodeSnippet):
 		fd, data, size = self.args
 		return Syscall(self.ctx.syscalls["read"],
 			fd, data, size, ctx=self.ctx).generate()
+
+class Getuid(ShellcodeSnippet):
+	def generate(self):
+		return Syscall(self.ctx.syscalls["getuid"], ctx=self.ctx).generate()
+
+class Setuid(ShellcodeSnippet):
+	nparams=1
+	def generate(self):
+		uid = self.args[0]
+		return Syscall(self.ctx.syscalls["setuid"], uid,
+			ctx=self.ctx).generate()
 
 class Execve(ShellcodeSnippet):
 	"""Execve(filename, param1, ..., ctx=self.ctx)

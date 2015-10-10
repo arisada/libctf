@@ -350,10 +350,30 @@ class TestShellcode(unittest.TestCase):
 	def testRead(self):
 		asm = Read(0, "esp", len("Hello, World!")).assemble()
 		asm += Write(1, "esp", len("Hello, World!")).assemble()
+		asm += Exit(0).assemble()
 		self.send_shellcode(asm)
 		self.process.stdin.write("Hello, World!")
 		data = self.process.stdout.read()
 		self.assertEqual(data, "Hello, World!")
+	def testGetuid(self):
+		asm = Getuid().assemble()
+		asm += assemble("push eax\n")
+		asm += Write(1, "esp", 4).assemble()
+		asm += Exit(0).assemble()
+		self.send_shellcode(asm)
+		data = self.process.stdout.read()
+		self.assertEqual(data, d(os.getuid()))
+	def testSetuid(self):
+		asm = Setuid(0).assemble()
+		asm += assemble("push eax\n")
+		asm += Write(1, "esp", 4).assemble()
+		asm += Exit(0).assemble()
+		self.send_shellcode(asm)
+		data = self.process.stdout.read()
+		self.assertEqual(data, d(0xffffffff))
 
 if __name__ == '__main__':
     unittest.main()
+# to test a single case:
+# python -m unittest tests.TestShellcode.testSetuid
+
