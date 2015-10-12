@@ -11,6 +11,10 @@ def w(x):
 	"""Pack to uint16"""
 	return struct.pack("<H", x)
 
+def unpack32(x):
+	"""unpack from uint32"""
+	return struct.unpack("<I", x)[0]
+
 def cencode(s):
 	"""Encode to \\x encoding"""
 	ret = ''.join(map(lambda x:"\\x"+x.encode("hex"), s))

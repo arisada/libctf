@@ -326,10 +326,31 @@ class TestShellcode(unittest.TestCase):
 
 		code = ";" + get_random(8).encode("hex") + "\nnotvalid eax, eax\n"
 		self.assertRaises(Exception, assemble, code, printerrors=False)
+	def test_has_badchar(self):
+		ctx = Context(badchars="\x41")
+		sc = ShellcodeSnippet(ctx=ctx)
+		self.assertTrue(sc.has_badchar(0x41000000))
+		self.assertTrue(sc.has_badchar(0x410000))
+		self.assertTrue(sc.has_badchar(0x4100))
+		self.assertTrue(sc.has_badchar(0x41))
+		self.assertFalse(sc.has_badchar(0x42000000))
+	def test_get_xor(self):
+		ctx = Context(badchars="\x41")
+		sc = ShellcodeSnippet(ctx=ctx)
+		xor1,xor2 = sc.get_xor(0x41424344)
+		self.assertFalse(sc.has_badchar(xor1))
+		self.assertFalse(sc.has_badchar(xor2))
+		self.assertEqual(0x41424344, xor1 ^ xor2)
 	def testSyscall(self):
 		asm = Syscall(1).assemble()
 		asm.encode("hex")
-
+	def testPushString(self):
+		ctx = Context(badchars="\x00")
+		asm = PushString("abcdefg", "eax", ctx=ctx).assemble()
+		self.assertFalse("\x00" in asm)
+		ctx = Context(badchars="\x00")
+		asm = PushString("test", "eax", ctx=ctx).assemble()
+		self.assertFalse("\x00" in asm)
 	def testExit(self):
 		asm = Exit(42).assemble()
 		self.send_shellcode(asm)
