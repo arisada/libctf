@@ -302,6 +302,8 @@ class TestBindSocket(unittest.TestCase):
 class TestShellcode(unittest.TestCase):
 	process=None
 	def setUp(self):
+		if(sys.platform == "darwin"):
+			config.os("osx")
 		path = os.path.abspath(__file__)
 		path = os.sep.join((os.path.dirname(path),"tests", "shellcode"))
 		self.process = subprocess.Popen([path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True, cwd=os.path.dirname(path))

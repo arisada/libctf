@@ -3,6 +3,7 @@ import os
 import tempfile
 import subprocess
 import struct
+import sys
 
 from cryptutils import md5, xor
 from langutils import switch
@@ -53,7 +54,7 @@ def assemble(code, cpu=None, printerrors=True):
 
 class NotSupportedException(Exception):
 	def __init__(self, cpu=None, OS=None):
-		super(NotSupportedException, self).__init__("Arch %s/%s not supported"%(cpu, OS))
+		super(NotSupportedException, self).__init__("Arch %s/%s not supported"%(OS, cpu))
 class BadCharException(Exception):
 	def __init__(self, shellcode, badchar):
 		Exception.__init__(self, "shellcode contains bad char %s"%(repr(badchar),))
@@ -144,6 +145,10 @@ class ShellcodeSnippet(object):
 		return None
 	def generate_linux_arm(self):
 		return None
+	def generate_osx_x86(self):
+		return None
+	def generate_osx_amd64(self):
+		return None
 	def generate(self):
 		for case in switch(self.ctx.cpu):
 			if case("x86"):
@@ -175,10 +180,20 @@ class ShellcodeSnippet(object):
 				asm = self.generate_linux_arm()
 				if asm is not None:
 					return asm
+			if case("osx/x86"):
+				asm = self.generate_osx_x86()
+				if asm is not None:
+					return asm
+			if case("osx/amd64"):
+				asm = self.generate_osx_amd64()
+				if asm is not None:
+					return asm
 			if case():
 				raise NotSupportedException(cpu=self.ctx.cpu, OS=self.ctx.os)
 	def assemble(self):
 		src = self.generate()
+		if config.verbose():
+			sys.stderr.write(src)
 		asm = assemble(src, cpu=self.ctx.cpu)
 		for i in self.ctx.badchars:
 			if i in asm:
@@ -220,8 +235,9 @@ class PushArray(ShellcodeSnippet):
 					self.ctx.state[dest] = v
 			else:
 				code += "push %d\n"%(v)
-		code += "mov %s, esp\n"%(dest)
-		self.ctx.state[dest]=REG_RESERVED
+		if (dest is not None):
+			code += "mov %s, esp\n"%(dest)
+			self.ctx.state[dest]=REG_RESERVED
 
 		return code
 
@@ -290,6 +306,45 @@ class Syscall(ShellcodeSnippet):
 		code += "int 0x80\n"
 		self.ctx.state["eax"]=REG_UNDEFINED
 		return code
+	def array_or_string(self, args):
+		for i in args:
+			if type(i)==list or type(i)==tuple:
+				return True
+			if type(i)==str and not i in self.ctx.all_registers:
+				return True
+		return False
+	def generate_osx_x86(self):
+		code = "\n; Syscall(%s)\n"%(self.args,)
+		args = list(self.args[1:])
+		# the pusharray changes the stack
+		if "esp" in args:
+			code += SetRegisters(("eax", "esp"), ctx=self.ctx).generate()
+			for i in xrange(len(args)):
+				if args[i] == "esp":
+					args[i] = "eax"
+		#if there is an array or a string, push it manually
+		if self.array_or_string(args):
+			regs = []
+			for dest, arg in zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"], args):
+				if type(arg) == list or type(arg) == tuple:
+					code += PushArray(arg, dest, ctx=self.ctx).generate()
+				elif type(arg)==str and not arg in self.ctx.all_registers:
+					code += PushString(arg, dest, ctx=self.ctx).generate()
+				else:
+					code += SetRegisters((dest, arg), ctx=self.ctx).generate()
+				regs += [dest]
+			regs.reverse()
+			for reg in regs:
+				code += "push %s\n"%(reg)
+		else:
+			#args.reverse()
+			code += PushArray(args, None, ctx=self.ctx).generate()
+		code += SetRegisters(("eax", self.args[0])).generate()
+		code += "push eax\n"
+		code += "int 0x80\n"
+		code += "add esp, %d\n"%(4 + len(args) * 4,)
+		self.ctx.state["eax"]=REG_UNDEFINED
+		return code
 
 class Exit(ShellcodeSnippet):
 	"""Exit(exitcode, ctx=ctx)"""
@@ -307,7 +362,7 @@ class Write(ShellcodeSnippet):
 	data can be a string, a register or an address"""
 	minparams = 2
 	maxparams = 3
-	def generate_linux_x86(self):
+	def generate_x86(self):
 		fd, data = self.args[:2]
 		if type(data)==str and not data in self.ctx.all_registers:
 			size = len(data)
@@ -347,7 +402,7 @@ class Execve(ShellcodeSnippet):
 	filename and params are strings. argv[0] set to filename"""
 	minparams=1
 	maxparams=2
-	def generate_linux_x86(self):
+	def generate_x86(self):
 		filename = self.args[0]
 		code = "; Execve(%s, %s, [NULL])\n"%(filename, self.args)
 		code += PushString(filename, "ebx", ctx=self.ctx).generate()
