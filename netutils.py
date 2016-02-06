@@ -9,7 +9,7 @@ class TimeoutException(Exception):
 # socket class
 class Socket(object):
 	s = None
-	readbuffer = ""
+	readbuffer = b""
 	eof = False
 	destination = None
 	def __init__(self, host, port, sock=None):
@@ -21,7 +21,9 @@ class Socket(object):
 
 	def connect(self):
 		return self.s.connect(self.destination)
-	def send(self, x):
+	def send(self, x, encoding="utf-8"):
+		if not isinstance(x, bytes):
+			x = bytes(x, encoding)
 		return self.s.send(x)
 	def __wait_recv__(self, timeout):
 		if (timeout != None):
@@ -61,7 +63,7 @@ class Socket(object):
 		self.readbuffer = self.readbuffer[length:]
 		return ret
 
-	def readline(self, terminator="\n", timeout=None):
+	def readline(self, terminator=b"\n", timeout=None):
 		"""Read a complete line until EOF. Returns None when finished"""
 		while self.readbuffer.find(terminator) < 0 and \
 			not self.eof:
@@ -71,12 +73,12 @@ class Socket(object):
 				self.eof = True
 				break
 			self.readbuffer += r
-		if self.eof and self.readbuffer == "":
+		if self.eof and self.readbuffer == b"":
 			return None
 		index = self.readbuffer.find(terminator)
 		if index < 0:
 			ret = self.readbuffer
-			self.readbuffer = ""
+			self.readbuffer = b""
 			return ret
 		ret = self.readbuffer[:index]
 		self.readbuffer = self.readbuffer[index + len(terminator):]
@@ -98,7 +100,7 @@ class Socket(object):
 		del self.s
 	def expect(self, data, timeout=None):
 		"""loop until data is found on the socket"""
-		s=""
+		s=b""
 		while s.find(data) < 0:
 			r = self.recv(timeout=timeout)
 			if r != None:

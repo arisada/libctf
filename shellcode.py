@@ -7,7 +7,7 @@ import sys
 
 from cryptutils import md5, xor
 from langutils import switch
-from textutils import chunkstring, hexdump, d, unpack32
+from textutils import chunkstring, hexdump, d, unpack32, hexa, tobytes, byte
 import config
 from constants import *
 
@@ -24,7 +24,7 @@ def assemble(code, cpu=None, printerrors=True):
 		header = ""
 	else:
 		raise Exception("Unknown cpu " + cpu)
-	filename = md5(header + code).encode("hex")[:8]
+	filename = hexa(md5(header + code))[:8]
 	path = os.path.join(tempfile.gettempdir(), "libctf")
 	try:
 		os.mkdir(path)
@@ -32,11 +32,13 @@ def assemble(code, cpu=None, printerrors=True):
 		pass
 	fullname = os.path.join(path, filename)
 	try:
-		binary = open(fullname).read()
-		return binary
+		with open(fullname, mode="rb") as f:
+			binary = f.read()
+			return binary
 	except Exception:
 		pass
-	open(fullname + ".s", "w").write(header + code)
+	with open(fullname + ".s", "w") as f:
+		f.write(header + code)
 	if printerrors:
 		errorstream=subprocess.STDOUT
 	else:
@@ -50,7 +52,8 @@ def assemble(code, cpu=None, printerrors=True):
 	else:
 		subprocess.check_call(["nasm", "-O0", "-o", fullname, fullname + ".s"], stderr=errorstream)
 	os.unlink(fullname + ".s")
-	return open(fullname).read()
+	with open(fullname, mode="rb") as f:
+		return f.read()
 
 class NotSupportedException(Exception):
 	def __init__(self, cpu=None, OS=None):
@@ -69,11 +72,11 @@ REG_RESERVED=_Register_Content()
 class Context(object):
 	cpu = None
 	os = None
-	badchars = ""
+	badchars = b""
 	syscalls = None
 	all_registers = None
 	state = None
-	def __init__(self, cpu=None, OS=None, badchars=""):
+	def __init__(self, cpu=None, OS=None, badchars=b""):
 		if cpu is not None:
 			self.cpu = cpu
 		else:
@@ -82,7 +85,7 @@ class Context(object):
 			self.os = OS
 		else:
 			self.os = config.os()
-		self.badchars = badchars
+		self.badchars = tobytes(badchars)
 		self.syscalls=syscalls[self.cpu][self.os]
 		if(self.cpu == "x86"):
 			self.all_registers = ["eax","ebx","ecx","edx","esi","edi","ebp","esp"]
@@ -121,12 +124,14 @@ class ShellcodeSnippet(object):
 					continue
 				return reg, value ^ v
 		# nothing useful found in registers
-		xored1 = ""
+		xored1 = b""
 		value = d(value)
 		for clear in value:
-			for i in xrange(256):
-				if not chr(i) in self.ctx.badchars and not xor(chr(i), clear) in self.ctx.badchars:
-					xored1 += chr(i)
+			if isinstance(clear, int):
+				clear = byte(clear)
+			for i in range(256):
+				if not byte(i) in self.ctx.badchars and not xor(byte(i), clear) in self.ctx.badchars:
+					xored1 += byte(i)
 					break
 		if len(xored1) != len(value):
 			raise Exception("Could not find a xor value to match badchars")
@@ -251,12 +256,12 @@ class PushString(ShellcodeSnippet):
 		#push string on stack
 		values = chunkstring(string, 4)
 		# pad the strings with zero
-		values = map(lambda x: x+ "\x00" * (4-len(x)), values)
+		values = [tobytes(x) + b"\x00" * (4-len(x)) for x in values]
 		# end the string with zero if it's not null terminated already
-		if len(values)==0 or values[-1][3]!="\x00":
-			values += ["\x00" * 4]
+		if len(values)==0 or not (values[-1][3]==b"\x00" or values[-1][3]==0):
+			values += [b"\x00" * 4]
 		#convert to integer
-		values = map(lambda x: struct.unpack("<I", x)[0], values)
+		values = [struct.unpack("<I", x)[0] for x in values]
 		code += PushArray(values, dest, ctx=self.ctx).generate()
 		return code
 
@@ -276,7 +281,7 @@ class SetRegisters(ShellcodeSnippet):
 				if reg == value:
 					continue
 				code += "mov %s, %s\n"%(reg, value)
-			elif type(value) == str:
+			elif type(value) == str or type(value) == bytes:
 				code += PushString(value, reg, ctx=self.ctx).generate()
 			elif type(value) == list or type(value) == tuple:
 				code += PushArray(value, reg, ctx=self.ctx).generate()
@@ -310,7 +315,7 @@ class Syscall(ShellcodeSnippet):
 		for i in args:
 			if type(i)==list or type(i)==tuple:
 				return True
-			if type(i)==str and not i in self.ctx.all_registers:
+			if type(i)==bytes and not i in self.ctx.all_registers:
 				return True
 		return False
 	def generate_osx_x86(self):
@@ -319,7 +324,7 @@ class Syscall(ShellcodeSnippet):
 		# the pusharray changes the stack
 		if "esp" in args:
 			code += SetRegisters(("eax", "esp"), ctx=self.ctx).generate()
-			for i in xrange(len(args)):
+			for i in range(len(args)):
 				if args[i] == "esp":
 					args[i] = "eax"
 		#if there is an array or a string, push it manually
@@ -328,7 +333,7 @@ class Syscall(ShellcodeSnippet):
 			for dest, arg in zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"], args):
 				if type(arg) == list or type(arg) == tuple:
 					code += PushArray(arg, dest, ctx=self.ctx).generate()
-				elif type(arg)==str and not arg in self.ctx.all_registers:
+				elif type(arg)==bytes and not arg in self.ctx.all_registers:
 					code += PushString(arg, dest, ctx=self.ctx).generate()
 				else:
 					code += SetRegisters((dest, arg), ctx=self.ctx).generate()
@@ -364,7 +369,10 @@ class Write(ShellcodeSnippet):
 	maxparams = 3
 	def generate_x86(self):
 		fd, data = self.args[:2]
-		if type(data)==str and not data in self.ctx.all_registers:
+		if isinstance(data, str) and not data in self.ctx.all_registers:
+			data = tobytes(data)
+			size = len(data)
+		elif isinstance(data, bytes) and not data in self.ctx.all_registers:
 			size = len(data)
 		else:
 			size = self.args[2]

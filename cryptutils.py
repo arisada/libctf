@@ -5,16 +5,17 @@ import Crypto.Hash.SHA
 import Crypto.Hash.SHA256
 import Crypto.Hash.MD5
 import Crypto.Cipher.AES
-
+import sys
+from textutils import tobytes, byte
 
 def sha1(x):
-	return Crypto.Hash.SHA.SHA1Hash(x).digest()
+	return Crypto.Hash.SHA.SHA1Hash(tobytes(x)).digest()
 def sha256(x):
-	return Crypto.Hash.SHA256.SHA256Hash(x).digest()
+	return Crypto.Hash.SHA256.SHA256Hash(tobytes(x)).digest()
 def md5(x):
-	return Crypto.Hash.MD5.MD5Hash(x).digest()
+	return Crypto.Hash.MD5.MD5Hash(tobytes(x)).digest()
 # AES in ECB mode
-def aes(data, key, IV="", decrypt=False, mode=Crypto.Cipher.AES.MODE_ECB):
+def aes(data, key, IV=b"", decrypt=False, mode=Crypto.Cipher.AES.MODE_ECB):
 	hdl = Crypto.Cipher.AES.new(key, mode, IV)
 	if(decrypt):
 		return hdl.decrypt(data)
@@ -24,23 +25,21 @@ def aes(data, key, IV="", decrypt=False, mode=Crypto.Cipher.AES.MODE_ECB):
 def aes_cbc(data, key, IV, decrypt=False):
 	return aes(data, key, IV=IV, decrypt=decrypt, mode=Crypto.Cipher.AES.MODE_CBC)
 
-
 def xor(data, key):
 	"""Xor data with a repeated key"""
-	paddedkey = key * (len(data)/len(key) + 1)
-	return "".join(map(lambda (x,y):chr(ord(x)^ord(y)), zip(data,paddedkey)))
+	paddedkey = key * (int(len(data)/len(key)) + 1)
+	if sys.version_info >= (3, 0):
+		if not isinstance(data, bytes) or not isinstance(key, bytes):
+			raise TypeError("bytes input are required")
+		return b"".join(byte(x^y) for (x,y) in zip(data,paddedkey))
+	else:
+		return b"".join(byte(ord(x)^ord(y)) for (x,y) in zip(data,paddedkey))
+
 
 def sort_by_key(data):
 	"""Sort a dictionary from values and return an array of (key, value) tuples"""
-	def cmp(x, y):
-		if (x[1] == y[1]):
-			return 0
-		elif (x[1] > y[1]):
-			return 1
-		else:
-			return -1
 	array = [(k, data[k]) for k in data.keys()]
-	array.sort(cmp = cmp)
+	array.sort(key=lambda x: x[1])
 	return array
 
 class distributions(object):
@@ -130,9 +129,11 @@ class keyspace(object):
 def get_random(size):
 	"""Return (size) bytes of secure random data"""
 	try:
-		return open("/dev/urandom").read(size)
+		with open("/dev/urandom", mode="rb") as f:
+			return f.read(size)
 	except Exception:
-		return open("/dev/random").read(size)
+		with open("/dev/random", mode="rb") as f:
+			return f.read(size)
 
 def extendedEuclid(a, b):
     """return a tuple of three values: x, y and z, such that x is

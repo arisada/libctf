@@ -2,6 +2,7 @@
 
 import struct
 import sys
+import codecs
 
 def d(x):
 	"""Pack to uint32"""
@@ -17,21 +18,21 @@ def unpack32(x):
 
 def cencode(s):
 	"""Encode to \\x encoding"""
-	ret = ''.join(map(lambda x:"\\x"+x.encode("hex"), s))
+	ret = ''.join(map(lambda x:"\\x"+hexa(byte(x)), s))
 	return '"' + ret + '"'
 def cdecode(s):
 	"""Decode a \\x encoding"""
 	transform = {
-		"\\" : "\\",
-		"n":"\n",
-		"r":"\r",
-		"t":"\t"
+		"\\": b"\\",
+		"n": b"\n",
+		"r": b"\r",
+		"t": b"\t"
 	}
-	ret = ""
+	ret = b""
 	i = 0
 	while i < len(s):
 		if s[i] != '\\':
-			ret += s[i]
+			ret += tobytes(s[i])
 			i += 1
 			continue
 		if len(s[i:]) < 2:
@@ -46,9 +47,38 @@ def cdecode(s):
 			raise TypeError("Invalid \\ encoding")
 		if len(s[i+1:]) < 2:
 			raise TypeError("Invalid \\ encoding")
-		ret += s[i+1:i+3].decode("hex")
+		try:
+			ret += codecs.decode(s[i+1:i+3], "hex")
+		except Exception:
+			raise TypeError("Invalid \\x encoding")
 		i += 3
 	return ret
+
+def tobytes(s):
+	if isinstance(s, bytes):
+		return s
+	if sys.version_info >= (3, 0):
+		return bytes(s, "ascii")
+	else:
+		return s
+
+def byte(i):
+	"""convert an integer to a byte value"""
+	if sys.version_info >= (3, 0):
+		return bytes((i,))
+	elif isinstance(i, str):
+		return i
+	else:
+		return chr(i)
+	
+def hexa(s):
+	"""portable hexa conversion"""
+	if sys.version_info >= (3, 0):
+		if isinstance(s, str):
+			s = bytes(s, "ascii")
+		return codecs.encode(s, "hex").decode('ascii')
+	else:
+		return s.encode("hex")
 
 def chunkstring(string, length):
 	#split a string by length
@@ -86,7 +116,7 @@ def color(string, color="red"):
 def __hexdata(line, mask, short=False):
 	s = ""
 	# Print first half of hex dump
-	for i in xrange(len(line[:8])):
+	for i in range(len(line[:8])):
 		c = "%.2x"%(ord(line[i]))
 		if (mask[i]):
 			s += color(c, "red")
@@ -96,7 +126,7 @@ def __hexdata(line, mask, short=False):
 
 	s+= "" if short else " "
 	# Print second half of hex dump
-	for i in xrange(len(line[8:])):
+	for i in range(len(line[8:])):
 		c = "%.2x"%(ord(line[8 + i]))
 		if (mask[i + 8]):
 			s += color(c, "red")
@@ -111,7 +141,7 @@ def __hexdata(line, mask, short=False):
 			s += " " * 3 * (16-len(line))
 	s+= " "
 	# Print ascii part
-	for i in xrange(len(line)):
+	for i in range(len(line)):
 		if __isprintable__(line[i]):
 			c=line[i]
 		else:
@@ -130,8 +160,13 @@ def all_occurences(data, patterns, merged=False):
 	Returns a list of (offset, len) tuples.	"""
 	offsets = []
 	# if the patterns is a string, make it an array
-	if isinstance(patterns, basestring):
+	if isinstance(patterns, str):
+		patterns = [tobytes(patterns)]
+	elif isinstance(patterns, bytes):
 		patterns = [patterns]
+	else:
+		patterns = (tobytes(i) for i in patterns)
+	data = tobytes(data)
 	# get the (offset, len) of every match in data
 	if patterns != None:
 		for p in patterns:
@@ -165,8 +200,7 @@ def _merge_offsets(offsetlist):
 	#merging-a-list-of-time-range-tuples-that-have-overlapping-time-ranges
 	if len(offsetlist) == 0:
 		return offsetlist
-	# change the map from (offset, len) to (start, stop)
-	initialrange = map(lambda (x,y):(x,x+y), offsetlist)
+	initialrange = [(x, x+y) for (x,y) in offsetlist]
 	i = sorted(set([tuple(sorted(x)) for x in initialrange]))
 
 	# initialize final ranges to [(a,b)]
@@ -179,7 +213,7 @@ def _merge_offsets(offsetlist):
 			f.append((c,d))
 		else:
 			pass
-	return map(lambda (x,y):(x,y-x), f)
+	return [(x, y-x) for (x, y) in f]
 def in_range(a,b):
 	"""Return true if the two tuple parameters (begin, end) overlap"""
 	a0, an = a
@@ -206,7 +240,7 @@ def hexdump(data, highlight = None, output="print", printoffset=0):
 	# convert to a bit mask 
 	mask = [False] * len(data)
 	for (index, length) in offsets:
-		for i in xrange(length):
+		for i in range(length):
 			mask[index + i] = True
 	#print mask
 
@@ -217,7 +251,7 @@ def hexdump(data, highlight = None, output="print", printoffset=0):
 		s = "%.8x: "%(index + printoffset)
 		s += __hexdata(x, mask[index:index+16])
 		if (output == "print"):
-			print s
+			print (s)
 		else:
 			out += s + "\n"
 		index += 16
@@ -229,7 +263,7 @@ def bindiff(d1, d2, onlydiff=True, output="print"):
 	if onlydiff=True: do only show different lines"""
 	totallen = max(len(d1), len(d2))
 	# create a mask of differences
-	mask = map(lambda (x,y): x != y, zip(d1,d2))
+	mask = [x != y for (x,y) in zip(d1, d2)]
 	mask += [True] * abs(len(d1) - len(d2))
 	
 	index = 0
@@ -245,7 +279,7 @@ def bindiff(d1, d2, onlydiff=True, output="print"):
 			s += __hexdata(x2, mask[index:index+16], short=True)
 
 			if (output == "print"):
-				print s
+				print (s)
 			else:
 				out += s + "\n"
 		index += 16
@@ -260,7 +294,7 @@ def bindifftable(d1, d2):
 	orig = ""
 	new =""
 
-	for i in xrange(totallen):
+	for i in range(totallen):
 		a = d1[i]
 		b = d2[i]
 		if offset != None:
@@ -303,7 +337,7 @@ def bingrep(d, patterns, linesbefore=0, linesafter=0, output="print"):
 		if (output == "string"):
 			out += r
 		if len(parts) > 1 and parts[-1] != (start, l):
-			print " --"
+			print (" --")
 	if output == "string":
 		return out
 	else:
@@ -311,14 +345,17 @@ def bingrep(d, patterns, linesbefore=0, linesafter=0, output="print"):
 
 # attempt to do sorta mutable strings
 class Buffer(object):
-	s=""
-	def __init__(self, s="", length=0):
-		if (s != "" and length != 0):
+	s=b""
+	def __init__(self, s=b"", length=0):
+		if (s != b"" and length != 0):
 			raise Exception("One of s or length must be set")
 		if length == 0:
-			self.s = s
+			if isinstance(s, bytes):
+				self.s = s
+			else:
+				self.s = tobytes(s)
 		else:
-			self.s = "\0"*length
+			self.s = b"\0"*length
 	def __getitem__(self, x):
 		return self.s.__getitem__(x)
 	def __setitem__(self, x, y):
@@ -332,18 +369,18 @@ class Buffer(object):
 		if (x.stop - x.start != len(y)):
 			raise Exception("Replacement string (%d) too big for range[%d:%d]"%(len(y),x.start, x.stop))
 		if x.stop > len(self.s):
-			self.s += chr(0) * (x.stop - len(self.s))
-		self.s = self.s[:x.start] + y + self.s[x.stop:]
+			self.s += b"\x00" * (x.stop - len(self.s))
+		self.s = self.s[:x.start] + tobytes(y) + self.s[x.stop:]
 	def __eq__(self, x):
 		return self.s.__eq__(x)
 	def __str__(self):
 		return self.s.__str__()
 	def __add__(self, x):
-		return Buffer(self.s.__add__(x))
+		return Buffer(self.s + tobytes(x))
 	def __len__(self):
 		return self.s.__len__()
 	def encode(self, x):
-		return self.s.encode(x)
+		return codecs.decode(codecs.encode(self.s, x), "ascii")
 	def decode(self, x):
 		return self.s.decode(x)
 	def join(self, x, y):

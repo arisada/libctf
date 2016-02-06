@@ -11,18 +11,18 @@ import threading
 import subprocess
 
 class TestCrypto(unittest.TestCase):
-	cleartext = "A"*16
-	IV = "B"*16
-	key = "C" * 16
+	cleartext = b"A"*16
+	IV = b"B"*16
+	key = b"C" * 16
 
 	def test_md5(self):
-		x = md5("Aris").encode("hex")
+		x = hexa(md5("Aris"))
 		self.assertEqual(x, "6a9e32c39e3dedf6dceb96f0dac0ffdd")
 	def test_sha1(self):
-		x = sha1("Aris").encode("hex")
+		x = hexa(sha1("Aris"))
 		self.assertEqual(x, "564ab1b32a47ae3ac7d3f9ad2c2dbdf2a1df2076")
 	def test_sha256(self):
-		x = sha256("Aris").encode("hex")
+		x = hexa(sha256("Aris"))
 		self.assertEqual(x,"b114ebc3ed13bfbef292395f009659771b56edb1e9be848bcdcd0fbfd6b24f4a")
 	def test_aes(self):
 		x = aes(self.cleartext, self.key)
@@ -35,14 +35,17 @@ class TestCrypto(unittest.TestCase):
 		self.assertEqual(self.cleartext, y)
 		self.assertNotEqual(x, self.cleartext)
 	def test_xor(self):
-		x = xor(data="AAAA", key="AAAA")
-		self.assertEqual(x, "\x00" * 4)
-		x = xor(data="A", key="AAAA")
-		self.assertEqual(x, "\x00")
-		x = xor(data="AAAA", key="A")
-		self.assertEqual(x, "\x00"*4)
-		x = xor(data="AAAA", key="AAAAZZZZZZZZZZZ")
-		self.assertEqual(x, "\x00"*4)
+		x = xor(data=b"AAAA", key=b"AAAA")
+		self.assertEqual(x, b"\x00" * 4)
+		x = xor(data=b"A", key=b"AAAA")
+		self.assertEqual(x, b"\x00")
+		x = xor(data=b"AAAA", key=b"A")
+		self.assertEqual(x, b"\x00"*4)
+		x = xor(data=b"AAAA", key=b"AAAAZZZZZZZZZZZ")
+		self.assertEqual(x, b"\x00"*4)
+	def test_random(self):
+		r = get_random(8)
+		self.assertEqual(len(r), 8)
 	def test_distribution_english_letters(self):
 		sum = 0.0
 		for i in distributions.english.letters.values():
@@ -80,16 +83,16 @@ class TestCrypto(unittest.TestCase):
 		self.assertFalse(pub.verify(msg, sig + 1))
 
 		cipher = pub.encrypt(msg)
-		self.assertEquals(priv.decrypt(cipher), msg)
+		self.assertEqual(priv.decrypt(cipher), msg)
 
 class TestPack(unittest.TestCase):
 	def test_pack(self):
-		self.assertEqual(d(0x41424344), "DCBA")
-		self.assertEqual(w(0x4142), "BA")
+		self.assertEqual(d(0x41424344), b"DCBA")
+		self.assertEqual(w(0x4142), b"BA")
 	def test_cencode(self):
-		self.assertEqual(cencode("\x41\xff\x32"), '"\\x41\\xff\\x32"')
+		self.assertEqual(cencode(b"\x41\xff\x32"), '"\\x41\\xff\\x32"')
 	def test_cdecode(self):
-		orig = "ABC\xff\t\r\n"
+		orig = b"ABC\xff\t\r\n"
 		encoded = "\\x41BC\\xff\\t\\r\\n"
 		self.assertEqual(cdecode(encoded), orig)
 		self.assertRaises(TypeError, cdecode, "xxxx\\x")
@@ -98,9 +101,11 @@ class TestPack(unittest.TestCase):
 		self.assertRaises(TypeError, cdecode, "xxxx\\")
 		self.assertRaises(TypeError, cdecode, "xxxx\\z")
 	def test_tocdeclaration(self):
-		orig = "ABCD"
+		orig = b"ABCD"
 		encoded = 'uint8_t name[4] = \n\t"\\x41\\x42\\x43\\x44";\n'
 		self.assertEqual(tocdeclaration("name",orig), encoded)
+	def test_byte(self):
+		self.assertEqual(byte(1), b'\x01')
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
@@ -186,28 +191,28 @@ class TestBuffer(unittest.TestCase):
 	def setUp(self):
 		self.s = Buffer("abcd")
 	def test_get(self):
-		self.assertEqual(self.s[0:4], "abcd")
-		self.assertEqual(self.s[:4], "abcd")
-		self.assertEqual(self.s[1:], "bcd")
+		self.assertEqual(self.s[0:4], b"abcd")
+		self.assertEqual(self.s[:4], b"abcd")
+		self.assertEqual(self.s[1:], b"bcd")
 
 	def test_assign(self):
 		self.s[4] = 'e'
-		self.assertEqual(self.s, "abcde")
+		self.assertEqual(self.s, b"abcde")
 		self.s[5:7] = 'fg'
-		self.assertEqual(self.s, "abcdefg")		
+		self.assertEqual(self.s, b"abcdefg")
 		self.s[0]="A"
-		self.assertEqual(self.s, "Abcdefg")
+		self.assertEqual(self.s, b"Abcdefg")
 		self.s[10]="K"
-		self.assertEqual(self.s, "Abcdefg\x00\x00\x00K")
+		self.assertEqual(self.s, b"Abcdefg\x00\x00\x00K")
 		self.s[7:]="hij"
-		self.assertEqual(self.s, "AbcdefghijK")
+		self.assertEqual(self.s, b"AbcdefghijK")
 		self.s[:11]="Hello"
-		self.assertEqual(self.s, "AbcdefHello")
+		self.assertEqual(self.s, b"AbcdefHello")
 		self.s[:4]="XY"
-		self.assertEqual(self.s, "AbXYefHello")
+		self.assertEqual(self.s, b"AbXYefHello")
 		self.assertIsInstance(self.s, Buffer)
 		self.s += " World!"
-		self.assertEqual(self.s, "AbXYefHello World!")
+		self.assertEqual(self.s, b"AbXYefHello World!")
 
 	def test_len(self):
 		self.assertEqual(len(self.s), 4)
@@ -241,9 +246,9 @@ class TestTextSocket(unittest.TestCase):
 			return
 		self.ready.set()
 		s = bindsocket.accept(timeout=1.0)
-		s.send("Hello\n")
-		s.send("How is it going?\r\n")
-		s.send("finishedTERMINATOR")
+		s.send(b"Hello\n")
+		s.send(b"How is it going?\r\n")
+		s.send(b"finishedTERMINATOR")
 		s.readline(timeout=1)
 		s.close()
 		bindsocket.close()
@@ -252,11 +257,11 @@ class TestTextSocket(unittest.TestCase):
 		s = Socket("localhost", 4444)
 		s.connect()
 		txt = s.readline()
-		self.assertEqual(txt, "Hello")
-		txt = s.readline("\r\n")
-		self.assertEqual(txt, "How is it going?")
-		txt = s.readline("TERMINATOR")
-		self.assertEqual(txt, "finished")
+		self.assertEqual(txt, b"Hello")
+		txt = s.readline(b"\r\n")
+		self.assertEqual(txt, b"How is it going?")
+		txt = s.readline(b"TERMINATOR")
+		self.assertEqual(txt, b"finished")
 		s.send("Finished\n")
 		txt = s.readline()
 		self.assertEqual(txt, None)
@@ -266,9 +271,9 @@ class TestTextSocket(unittest.TestCase):
 		s = Socket("localhost",4444)
 		s.connect()
 		txt = s.read_block(len("Hello\n"))
-		self.assertEqual(txt, "Hello\n")
+		self.assertEqual(txt, b"Hello\n")
 		txt = s.read_block(len("How is it going?\r\n"))
-		self.assertEqual(txt, "How is it going?\r\n")
+		self.assertEqual(txt, b"How is it going?\r\n")
 		s.send("Finished\n")
 		s.close()
 
@@ -282,7 +287,7 @@ class TestTextSocket(unittest.TestCase):
 		self.assertEqual((r,w,x), (True, True, False))
 		s.readline()
 		s.readline()
-		s.readline("TERMINATOR")
+		s.readline(b"TERMINATOR")
 		# now socket should be empty
 		(r,w,x) = s.poll(read=True, write=True, exception = True, timeout=0.0)
 		self.assertEqual((r,w,x), (False, True, False))
@@ -298,38 +303,42 @@ class TestBindSocket(unittest.TestCase):
 	def test_timeout(self):
 		s= BindSocket("::",4444)
 		self.assertRaises(TimeoutException, s.accept, 0.2)
+		s.close()
 
 class TestShellcode(unittest.TestCase):
 	process=None
 	def setUp(self):
 		if(sys.platform == "darwin"):
 			config.os("osx")
+		#config.verbose(True)
 		path = os.path.abspath(__file__)
 		path = os.sep.join((os.path.dirname(path),"tests", "shellcode"))
-		self.process = subprocess.Popen([path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True, cwd=os.path.dirname(path))
+		self.process = subprocess.Popen([path], bufsize=0, stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True, cwd=os.path.dirname(path))
 	def tearDown(self):
 		try:
 			self.process.kill()
 		except Exception:
 			pass
 		self.process.wait()
-		self.process=None
+		self.process.stdin.close()
+		self.process.stdout.close()
+		del self.process
 	def send_shellcode(self, asm):
 		self.process.stdin.write(d(len(asm)))
 		self.process.stdin.write(asm)
 		
 	def test_assemble(self):
-		code = ";" + get_random(8).encode("hex") + "\nret\n"
+		code = ";" + hexa(get_random(8)) + "\nret\n"
 		asm = assemble(code)
-		self.assertEqual(asm, "\xc3")
+		self.assertEqual(asm, b"\xc3")
 		#test cache
 		asm = assemble(code)
-		self.assertEqual(asm, "\xc3")
+		self.assertEqual(asm, b"\xc3")
 
-		code = ";" + get_random(8).encode("hex") + "\nnotvalid eax, eax\n"
+		code = ";" + hexa(get_random(8)) + "\nnotvalid eax, eax\n"
 		self.assertRaises(Exception, assemble, code, printerrors=False)
 	def test_has_badchar(self):
-		ctx = Context(badchars="\x41")
+		ctx = Context(badchars=b"\x41")
 		sc = ShellcodeSnippet(ctx=ctx)
 		self.assertTrue(sc.has_badchar(0x41000000))
 		self.assertTrue(sc.has_badchar(0x410000))
@@ -337,7 +346,7 @@ class TestShellcode(unittest.TestCase):
 		self.assertTrue(sc.has_badchar(0x41))
 		self.assertFalse(sc.has_badchar(0x42000000))
 	def test_get_xor(self):
-		ctx = Context(badchars="\x41")
+		ctx = Context(badchars=b"\x41")
 		sc = ShellcodeSnippet(ctx=ctx)
 		xor1,xor2 = sc.get_xor(0x41424344)
 		self.assertFalse(sc.has_badchar(xor1))
@@ -345,14 +354,14 @@ class TestShellcode(unittest.TestCase):
 		self.assertEqual(0x41424344, xor1 ^ xor2)
 	def testSyscall(self):
 		asm = Syscall(1).assemble()
-		asm.encode("hex")
+		hexa(asm)
 	def testPushString(self):
-		ctx = Context(badchars="\x00")
+		ctx = Context(badchars=b"\x00")
 		asm = PushString("abcdefg", "eax", ctx=ctx).assemble()
-		self.assertFalse("\x00" in asm)
-		ctx = Context(badchars="\x00")
+		self.assertFalse(b"\x00" in asm)
+		ctx = Context(badchars=b"\x00")
 		asm = PushString("test", "eax", ctx=ctx).assemble()
-		self.assertFalse("\x00" in asm)
+		self.assertFalse(b"\x00" in asm)
 	def testExit(self):
 		asm = Exit(42).assemble()
 		self.send_shellcode(asm)
@@ -363,21 +372,21 @@ class TestShellcode(unittest.TestCase):
 		asm += Exit(0).assemble()
 		self.send_shellcode(asm)
 		data = self.process.stdout.read()
-		self.assertEqual(data, "Hello, world!")
+		self.assertEqual(data, b"Hello, world!")
 	def testExecve(self):
 		asm = Execve("/usr/bin/printf","Hello, World!").assemble()
 		asm += Exit(0).assemble()
 		self.send_shellcode(asm)
 		data = self.process.stdout.read()
-		self.assertEqual(data, "Hello, World!")
+		self.assertEqual(data, b"Hello, World!")
 	def testRead(self):
 		asm = Read(0, "esp", len("Hello, World!")).assemble()
 		asm += Write(1, "esp", len("Hello, World!")).assemble()
 		asm += Exit(0).assemble()
 		self.send_shellcode(asm)
-		self.process.stdin.write("Hello, World!")
+		self.process.stdin.write(b"Hello, World!")
 		data = self.process.stdout.read()
-		self.assertEqual(data, "Hello, World!")
+		self.assertEqual(data, b"Hello, World!")
 	def testGetuid(self):
 		asm = Getuid().assemble()
 		asm += assemble("push eax\n")
