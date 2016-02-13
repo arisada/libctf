@@ -82,6 +82,13 @@ def hexa(s):
 	else:
 		return s.encode("hex")
 
+def hexdecode(s):
+	"""decode hex string to bytes"""
+	if sys.version_info >= (3, 0):
+		return codecs.decode(s, "hex")
+	else:
+		return s.decode("hex")
+
 def chunkstring(string, length):
 	#split a string by length
 	return (string[0+i:length+i] for i in range(0, len(string), length))

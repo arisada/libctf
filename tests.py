@@ -104,6 +104,12 @@ class TestPack(unittest.TestCase):
 		self.assertEqual(tocdeclaration("name",orig), encoded)
 	def test_byte(self):
 		self.assertEqual(byte(1), b'\x01')
+	def test_hexa(self):
+		h = hexa(b"\x41\x00\xff")
+		self.assertEqual(h, "4100ff")
+	def test_hexdecode(self):
+		b = hexdecode("4100ff")
+		self.assertEqual(b, b'\x41\x00\xff')
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
