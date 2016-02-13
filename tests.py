@@ -41,6 +41,10 @@ class TestCrypto(unittest.TestCase):
 		self.assertEqual(x, b"\x00"*4)
 		x = xor(data=b"AAAA", key=b"AAAAZZZZZZZZZZZ")
 		self.assertEqual(x, b"\x00"*4)
+	def test_pkcs7(self):
+		data = b'A'*12
+		out = pkcs7(data, 16)
+		self.assertEqual(out, b'AAAAAAAAAAAA\x04\x04\x04\x04')
 	def test_random(self):
 		r = get_random(8)
 		self.assertEqual(len(r), 8)

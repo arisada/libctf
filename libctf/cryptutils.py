@@ -25,6 +25,14 @@ def aes(data, key, IV=b"", decrypt=False, mode=Crypto.Cipher.AES.MODE_ECB):
 def aes_cbc(data, key, IV, decrypt=False):
 	return aes(data, key, IV=IV, decrypt=decrypt, mode=Crypto.Cipher.AES.MODE_CBC)
 
+def pkcs7(data, blocksize):
+	"""Apply pkcs7 padding to the data"""
+	padding = blocksize - (len(data)%blocksize)
+	if sys.version_info >= (3,0):
+		return data + bytes([padding] * padding)
+	else:
+		return data + chr(padding)*padding
+
 def xor(data, key):
 	"""Xor data with a repeated key"""
 	paddedkey = key * (int(len(data)/len(key)) + 1)
