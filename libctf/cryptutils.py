@@ -42,41 +42,54 @@ def sort_by_key(data):
 	array.sort(key=lambda x: x[1])
 	return array
 
+def freq_analysis(input, transform, evaluate, keyspace):
+	"""Perform a bruteforce statistic attack on cipher transform
+	and return an array of (freq, key)"""
+	freq = []
+	for k in keyspace:
+		candidate = transform(input, k)
+		score = evaluate(candidate)
+		freq.append((score, k))
+	freq.sort()
+	return freq
+
 class distributions(object):
 	class english(object):
 		#source https://en.wikipedia.org/wiki/Letter_frequency
 		letters = {
-			'a':0.08167,
-			'b':0.01492,
-			'c':0.02782,
-			'd':0.04253,
-			'e':0.12702,
-			'f':0.02228,
-			'g':0.02015,
-			'h':0.06094,
-			'i':0.06966,
-			'j':0.00153,
-			'k':0.00772,
-			'l':0.04025,
-			'm':0.02406,
-			'n':0.06749,
-			'o':0.07507,
-			'p':0.01929,
-			'q':0.00095,
-			'r':0.05987,
-			's':0.06327,
-			't':0.09056,
-			'u':0.02758,
-			'v':0.00987,
-			'w':0.02361,
-			'x':0.00150,
-			'y':0.01974,
-			'z':0.00074,
+			b'a':0.08167,
+			b'b':0.01492,
+			b'c':0.02782,
+			b'd':0.04253,
+			b'e':0.12702,
+			b'f':0.02228,
+			b'g':0.02015,
+			b'h':0.06094,
+			b'i':0.06966,
+			b'j':0.00153,
+			b'k':0.00772,
+			b'l':0.04025,
+			b'm':0.02406,
+			b'n':0.06749,
+			b'o':0.07507,
+			b'p':0.01929,
+			b'q':0.00095,
+			b'r':0.05987,
+			b's':0.06327,
+			b't':0.09056,
+			b'u':0.02758,
+			b'v':0.00987,
+			b'w':0.02361,
+			b'x':0.00150,
+			b'y':0.01974,
+			b'z':0.00074,
 		}
 		# http://www.data-compression.com/english.html defines space to be 0.1918
 		letters_with_space = {k:v*(1-0.1918) for k,v in letters.items()}
 		letters_with_space[' '] = 0.1918
-
+		caps_letters = {k.upper():v*0.3 for k, v in letters.items()}
+		letters_with_caps_space = letters_with_space.copy()
+		letters_with_caps_space.update(caps_letters)
 _bitcount_lookup = [
 	0, 1, 1, 2, 1, 2, 2, 3,
 	1, 2, 2, 3, 2, 3, 3, 4
@@ -99,13 +112,13 @@ def hamming(a,b):
 	return sum
 
 class keyspace(object):
-	letters="abcdefghijklmnopqrstuvwxyz"
-	upperletters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	letters=b"abcdefghijklmnopqrstuvwxyz"
+	upperletters=b"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	allletters=letters+upperletters
-	ciphers="0123456789"
+	ciphers=b"0123456789"
 	lettersciphers=letters+ciphers
 	alllettersciphers=allletters+ciphers
-	specials='''!_&~/*-+\\<>$^%[]{}#"\'|:,?.='''
+	specials=b' !_&~/*-+\\<>$^%[]{}#"\'|:,?.='
 	allprintable=alllettersciphers + specials
 	@staticmethod
 	def generate(space, size):
@@ -117,7 +130,7 @@ class keyspace(object):
 			#print state
 			s = map(lambda x: space[x], state)
 			yield "".join(s)
-			for i in xrange(size-1, -1, -1):
+			for i in range(size-1, -1, -1):
 				if i == 0 and state[i] == max:
 					finished = True
 				if state[i] == max:
