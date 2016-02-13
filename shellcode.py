@@ -5,11 +5,11 @@ import subprocess
 import struct
 import sys
 
-from cryptutils import md5, xor
-from langutils import switch
-from textutils import chunkstring, hexdump, d, unpack32, hexa, tobytes, byte
-import config
-from constants import *
+from .cryptutils import md5, xor
+from .langutils import switch
+from .textutils import chunkstring, hexdump, d, unpack32, hexa, tobytes, byte
+import .config
+from .constants import *
 
 def assemble(code, cpu=None, printerrors=True):
 	"""Assemble given code to binary. Accepted cpus: "x86","amd64",

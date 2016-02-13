@@ -76,6 +76,8 @@ def hexa(s):
 	if sys.version_info >= (3, 0):
 		if isinstance(s, str):
 			s = bytes(s, "ascii")
+		elif isinstance(s, int):
+			s = bytes((s,))
 		return codecs.encode(s, "hex").decode('ascii')
 	else:
 		return s.encode("hex")
@@ -94,7 +96,10 @@ def tocdeclaration(name, value, type="uint8_t", indent="\t", width=60):
 	return out
 
 def __isprintable__(c):
-	val = ord(c)
+	if isinstance(c, int):
+		val = c
+	else:
+		val = ord(c)
 	if(val >= 0x20 and val < 0x7f):
 		return True
 	return False
@@ -117,7 +122,7 @@ def __hexdata(line, mask, short=False):
 	s = ""
 	# Print first half of hex dump
 	for i in range(len(line[:8])):
-		c = "%.2x"%(ord(line[i]))
+		c = hexa(line[i])
 		if (mask[i]):
 			s += color(c, "red")
 		else:
@@ -127,7 +132,7 @@ def __hexdata(line, mask, short=False):
 	s+= "" if short else " "
 	# Print second half of hex dump
 	for i in range(len(line[8:])):
-		c = "%.2x"%(ord(line[8 + i]))
+		c = hexa(line[8 + i])
 		if (mask[i + 8]):
 			s += color(c, "red")
 		else:
@@ -143,7 +148,9 @@ def __hexdata(line, mask, short=False):
 	# Print ascii part
 	for i in range(len(line)):
 		if __isprintable__(line[i]):
-			c=line[i]
+			c=line[i:i+1]
+			if sys.version_info >= (3, 0):
+				c = codecs.decode(c, "ascii")
 		else:
 			c="."
 		if mask[i]:

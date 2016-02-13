@@ -6,7 +6,7 @@ import Crypto.Hash.SHA256
 import Crypto.Hash.MD5
 import Crypto.Cipher.AES
 import sys
-from textutils import tobytes, byte
+from .textutils import tobytes, byte
 
 def sha1(x):
 	return Crypto.Hash.SHA.SHA1Hash(tobytes(x)).digest()
