@@ -6,7 +6,7 @@ import Crypto.Hash.SHA256
 import Crypto.Hash.MD5
 import Crypto.Cipher.AES
 import sys
-from .textutils import tobytes, byte
+from .textutils import tobytes, byte, chunkstring
 
 def sha1(x):
 	return Crypto.Hash.SHA.SHA1Hash(tobytes(x)).digest()
@@ -52,6 +52,31 @@ def freq_analysis(input, transform, evaluate, keyspace):
 		freq.append((score, k))
 	freq.sort()
 	return freq
+
+def detect_ecb(data):
+	keysizes = [8,16, 24, 32]
+	# keysize, offset
+	keyspace = [(i, j) for i in keysizes for j in range(i)]
+	def transform(data, key):
+		keysize, offset = key
+		ret = chunkstring(data[offset:], keysize)
+		ret = list(ret)
+		if len(ret[-1]) != keysize:
+			ret = ret[:-1]
+		return ret
+	def evaluate(data):
+		data.sort()
+		p = 0.0
+		previous=None
+		if len(data)==0:
+			return 0.0
+		for d in data:
+			if d == previous:
+				p += 1
+			previous = d
+		return p/len(data)
+	probas = freq_analysis(data, transform, evaluate, keyspace)
+	return probas[:-5:-1]
 
 class distributions(object):
 	class english(object):
@@ -107,7 +132,10 @@ def hamming(a,b):
 	"""return the hamming distance between a and b"""
 	sum = 0
 	for i,j in zip(a,b):
-		h = ord(i) ^ ord(j)
+		if isinstance(i, str):
+			h = ord(i) ^ ord(j)
+		else:
+			h = i ^ j
 		sum += _bitcount_lookup[h & 0x0f] + _bitcount_lookup[h >> 4]
 	return sum
 

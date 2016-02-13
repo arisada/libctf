@@ -62,8 +62,8 @@ class TestCrypto(unittest.TestCase):
 		y = sort_by_key(x)
 		self.assertEqual(y, [('d',-1), ('c', 0), ('a', 1), ('b', 2)])
 	def test_hamming(self):
-		x = "this is a test"
-		y = "wokka wokka!!!"
+		x = b"this is a test"
+		y = b"wokka wokka!!!"
 		self.assertEqual(hamming(x,y), 37)
 	def test_count_bits(self):
 		x = "ABCDEFG"
