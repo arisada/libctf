@@ -4,4 +4,4 @@ from .textutils import *
 from .netutils import *
 from .cryptutils import *
 from .langutils import *
-
+from .shellcode import *

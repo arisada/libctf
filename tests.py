@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 
-from textutils import *
-from textutils import _merge_offsets
-from netutils import *
-from cryptutils import *
-from shellcode import *
-
+from libctf import *
+from libctf.textutils import _merge_offsets
+from libctf.config import config
 import unittest
 import threading
 import subprocess
+import os
 
 class TestCrypto(unittest.TestCase):
 	cleartext = b"A"*16
@@ -109,8 +107,8 @@ class TestPack(unittest.TestCase):
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
-		s = "A" * 15 + "HELLO" + "B" * 16 + "\x00"
-		out = hexdump(s, "HELLO", output="string")
+		s = b"A" * 15 + b"HELLO" + b"B" * 16 + b"\x00"
+		out = hexdump(s, b"HELLO", output="string")
 		expected = "00000000: 41 41 41 41 41 41 41 41  41 41 41 41 41 41 41 48  AAAAAAAAAAAAAAAH\n" + \
 			"00000010: 45 4c 4c 4f 42 42 42 42  42 42 42 42 42 42 42 42  ELLOBBBBBBBBBBBB\n" + \
 			"00000020: 42 42 42 42 00                                    BBBB.           \n"
@@ -119,8 +117,8 @@ class TestHexdump(unittest.TestCase):
 		self.assertEqual(out, expected)
 		#print out
 	def test_bindiff(self):
-		s1 = "A" * 15 + "HELLO" + "B" * 16
-		s2 = "A" * 15 + "WORLD" + "B" * 16
+		s1 = b"A" * 15 + b"HELLO" + b"B" * 16
+		s2 = b"A" * 15 + b"WORLD" + b"B" * 16
 		out = bindiff(s1,s2, output="string")
 		expected = "00000000: 41414141414141414141414141414148 AAAAAAAAAAAAAAAH" + \
 		"  41414141414141414141414141414157 AAAAAAAAAAAAAAAW\n" + \
@@ -128,7 +126,7 @@ class TestHexdump(unittest.TestCase):
 		"  4f524c44424242424242424242424242 ORLDBBBBBBBBBBBB\n"
 		out = out.replace('\033[91m', "").replace('\033[0m',"")
 		self.assertEqual(out, expected)
-		s2 += "And the rest!"
+		s2 += b"And the rest!"
 		out = bindiff(s1,s2, output="string")
 		#print "\n" + out
 		expected = "00000000: 41414141414141414141414141414148 AAAAAAAAAAAAAAAH" + \
