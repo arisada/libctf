@@ -187,6 +187,24 @@ class TestInrange(unittest.TestCase):
 			self.assertEqual(in_range(a,b), t)
 			self.assertEqual(in_range(b,a), t)
 
+class TestLangUtils(unittest.TestCase):
+	def test_maxsortedlist(self):
+		x = MaxSortedList(maxn=3)
+		x.append(1)
+		x.append(2)
+		x.append(3)
+		self.assertEqual(x, [3, 2, 1])
+		x.append(0)
+		self.assertEqual(x, [3, 2, 1])
+		x.append(2)
+		self.assertEqual(x, [3, 2, 2])
+		x.append(4)
+		self.assertEqual(x, [4, 3, 2])
+		self.assertEqual(x[0], 4)
+		self.assertEqual(x[2], 2)
+		self.assertEqual(len(x), 3)
+		self.assertEqual(str(x), "[4, 3, 2]")
+
 class TestText(unittest.TestCase):
 	def test_replace(self):
 		s=replace("Hi, folks!", ("Hi","Hello"), ("folks","world"))

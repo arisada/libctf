@@ -1,6 +1,7 @@
 # langutils.py
 # contains several language tricks to make python better
 
+import bisect
 # http://code.activestate.com/recipes/410692/
 # This class provides the functionality we want. You only need to look at
 # this if you want to know how this works. It only needs to be defined
@@ -24,3 +25,24 @@ class switch(object):
             return True
         else:
             return False
+
+class MaxSortedList(object):
+    """Implementation of a list where elements are kept sorted, and only the
+    maxn biggest elements are kept"""
+    def __init__(self, maxn):
+        self._maxn = maxn
+        self._list = []
+    def append(self, e):
+        self._list.reverse()
+        bisect.insort(self._list, e)
+        self._list.reverse()
+        if len(self._list) > self._maxn:
+            del self._list[-1]
+    def __eq__(self, e):
+        return self._list == e
+    def __getitem__(self, e):
+        return self._list[e]
+    def __len__(self):
+        return len(self._list)
+    def __str__(self):
+        return str(self._list)
