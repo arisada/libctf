@@ -62,13 +62,15 @@ def freq_analysis(input, transform, evaluate, keyspace):
 	return freq
 
 def detect_ecb(data):
-	keysizes = [8,16, 24, 32]
+	keysizes = [8,16]
 	# keysize, offset
 	keyspace = [(i, j) for i in keysizes for j in range(i)]
 	def transform(data, key):
 		keysize, offset = key
 		ret = chunkstring(data[offset:], keysize)
 		ret = list(ret)
+		if len(ret) == 0:
+			return ret
 		if len(ret[-1]) != keysize:
 			ret = ret[:-1]
 		return ret
