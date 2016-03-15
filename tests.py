@@ -74,6 +74,16 @@ class TestCrypto(unittest.TestCase):
 		y = "\x00" * len(x)
 		h = hamming(x, y)
 		self.assertEqual(count_bits_set(x), h)
+	def test_product(self):
+		p = product([2, 3, 3, 5, 13, 29, 37])
+		self.assertEqual(p, 2*3*3*5*13*29*37)
+	def test_all_primes(self):
+		primes = list(all_primes(30))
+		self.assertEqual(primes, [2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
+	def test_factorize(self):
+		factors = [2, 3, 3, 5, 13, 29, 37]
+		r = factorize(product(factors))
+		self.assertEqual(r, factors)
 	def test_RSA(self):
 		p = 22307
 		q = 93179

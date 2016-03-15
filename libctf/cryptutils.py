@@ -6,6 +6,7 @@ import Crypto.Hash.SHA256
 import Crypto.Hash.MD5
 import Crypto.Cipher.AES
 import sys
+import math
 from .textutils import tobytes, byte, chunkstring
 
 def sha1(x):
@@ -185,6 +186,48 @@ def get_random(size):
 	except Exception:
 		with open("/dev/random", mode="rb") as f:
 			return f.read(size)
+
+def product(factors):
+	"""multiply an interable of numbers together"""
+	p = 1
+	for f in factors:
+		p *= f
+	return p
+
+_primes = [2, 3, 5, 7, 11, 13]
+
+def _test_prime(p):
+	"""test if p is divisible by any prime of the list"""
+	for i in _primes:
+		if p%i == 0:
+			return False
+	return True
+
+def all_primes(limit):
+	"""return a generator on all primes below or equal to a limit.
+	Will only consume memory for returned elements"""
+	limited = (p for p in _primes if p <= limit)
+	for p in limited:
+		yield p
+	p = _primes[-1] + 2
+	while(p <= limit):
+		if _test_prime(p):
+			_primes.append(p)
+			yield p
+		p += 2
+
+def factorize(v):
+	"""non-efficient factorization algorithm"""
+	factors = []
+	primes = all_primes(math.sqrt(v) + 1)
+	for p in primes:
+		#print(p)
+		while(v%p ==0):
+			factors.append(p)
+			v = int(v / p)
+		if v == 1:
+			return factors
+	return factors + [v]
 
 def extendedEuclid(a, b):
     """return a tuple of three values: x, y and z, such that x is
