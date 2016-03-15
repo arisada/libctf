@@ -257,6 +257,15 @@ def modExp(a, d, n):
     """returns a ** d (mod n)"""
     return pow(a, d, n)
 
+def chinese_remainder(a, n):
+	"""Find the chinese remainder of a list of a_i mod n_i"""
+	s = 0
+	prod = product(n)
+	for a_i, n_i in zip(a, n):
+		p = prod // n_i
+		s += a_i * modInv(p, n_i) * p
+	return s % prod
+
 class RSA(object):
 	private=False
 	phi=None

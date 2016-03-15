@@ -92,6 +92,11 @@ class TestCrypto(unittest.TestCase):
 		f1 = product((2,3,3,5))
 		f2 = product((2,3,11))
 		self.assertEqual(lcm(f1,f2), 2*3*3*5*11)
+	def test_chinese(self):
+		value = 1337
+		n = [7, 13, 29]
+		result = chinese_remainder([value % n_i for n_i in n], n)
+		self.assertEqual(result, value)
 	def test_RSA(self):
 		p = 22307
 		q = 93179
