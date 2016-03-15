@@ -46,3 +46,16 @@ class MaxSortedList(object):
         return len(self._list)
     def __str__(self):
         return str(self._list)
+
+class NamedDict(dict):
+    """Dictionary whose values can be accessed with dictobject.key"""
+    def __getattr__(self, name):
+        if name in self:
+            return self[name]
+        else:
+            raise AttributeError(name)
+    def __setattr__(self, name, value):
+        if name in self:
+            self[name]=value
+        else:
+            raise AttributeError(name)

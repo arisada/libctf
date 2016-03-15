@@ -204,6 +204,16 @@ class TestLangUtils(unittest.TestCase):
 		self.assertEqual(x[2], 2)
 		self.assertEqual(len(x), 3)
 		self.assertEqual(str(x), "[4, 3, 2]")
+	def test_nameddict(self):
+		d = {'a':1, 'b':2, 'c':3}
+		n = NamedDict(d)
+		self.assertEqual(d, n)
+		self.assertEqual(n["a"], 1)
+		self.assertEqual(n.a, 1)
+		n.a = 4
+		self.assertNotEqual(d, n)
+		self.assertEqual(n["a"], 4)
+		self.assertEqual(n.a, 4)
 
 class TestText(unittest.TestCase):
 	def test_replace(self):
