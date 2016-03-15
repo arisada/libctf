@@ -84,6 +84,14 @@ class TestCrypto(unittest.TestCase):
 		factors = [2, 3, 3, 5, 13, 29, 37]
 		r = factorize(product(factors))
 		self.assertEqual(r, factors)
+	def test_gcd(self):
+		f1 = product((2,3,3,5))
+		f2 = product((2,3,11))
+		self.assertEqual(gcd(f1,f2), 2*3)
+	def test_lcm(self):
+		f1 = product((2,3,3,5))
+		f2 = product((2,3,11))
+		self.assertEqual(lcm(f1,f2), 2*3*3*5*11)
 	def test_RSA(self):
 		p = 22307
 		q = 93179

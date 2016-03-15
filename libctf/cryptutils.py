@@ -229,6 +229,14 @@ def factorize(v):
 			return factors
 	return factors + [v]
 
+def gcd(a, b):
+	while a != 0:
+		a, b = b%a, a
+	return b
+
+def lcm(a, b):
+	return (a*b)//gcd(a,b)
+
 def extendedEuclid(a, b):
     """return a tuple of three values: x, y and z, such that x is
     the GCD of a and b, and x = y * a + z * b"""
