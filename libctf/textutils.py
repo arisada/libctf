@@ -178,7 +178,7 @@ def all_occurences(data, patterns, merged=False):
 		patterns = [tobytes(patterns)]
 	elif isinstance(patterns, bytes):
 		patterns = [patterns]
-	else:
+	elif patterns is not None:
 		patterns = (tobytes(i) for i in patterns)
 	data = tobytes(data)
 	# get the (offset, len) of every match in data
