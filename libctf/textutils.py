@@ -20,6 +20,32 @@ def cencode(s):
 	"""Encode to \\x encoding"""
 	ret = ''.join(map(lambda x:"\\x"+hexa(byte(x)), s))
 	return '"' + ret + '"'
+
+def bytestoint(s):
+	"""decode a byte array to an integer, big endian"""
+	r = 0
+	for i in s:
+		r <<= 8
+		if isinstance(i, int):
+			r += i
+		else:
+			r += ord(i)
+	return r
+
+def inttobytes(i):
+	"""encode an integer into a byte array, big endian"""
+	if i < 0:
+		raise Exception("Negative integers not supported")
+	r = []
+	while i != 0:
+		r.append(i & 0xff)
+		i >>= 8
+	r.reverse()
+	if sys.version_info >= (3, 0):
+		return bytes(r)
+	else:
+		return "".join(chr(x) for x in r)
+
 def cdecode(s):
 	"""Decode a \\x encoding"""
 	transform = {

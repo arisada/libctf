@@ -31,6 +31,20 @@ class TestPack(unittest.TestCase):
 	def test_hexdecode(self):
 		b = hexdecode("4100ff")
 		self.assertEqual(b, b'\x41\x00\xff')
+	def test_bytestoint(self):
+		s1 = b'\x41\x42\x43'
+		s2 = b'\x41\x42'
+		r = bytestoint(s1)
+		self.assertEqual(r, 0x414243)
+		r = bytestoint(s2)
+		self.assertEqual(r, 0x4142)
+	def test_inttobytes(self):
+		s1 = b'\x41\x42\x43'
+		s2 = b'\x41\x42'
+		r = inttobytes(0x414243)
+		self.assertEqual(r, s1)
+		r = inttobytes(0x4142)
+		self.assertEqual(r, s2)
 
 class TestHexdump(unittest.TestCase):
 	def test_output(self):
