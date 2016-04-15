@@ -91,7 +91,7 @@ def hexdecode(s):
 
 def chunkstring(string, length):
 	#split a string by length
-	return (string[0+i:length+i] for i in range(0, len(string), length))
+	return list(string[0+i:length+i] for i in range(0, len(string), length))
 
 def tocdeclaration(name, value, type="uint8_t", indent="\t", width=60):
 	out = "%s %s[%d] = \n"%(type, name, len(value))
