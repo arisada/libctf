@@ -81,6 +81,21 @@ class TestCrypto(unittest.TestCase):
 		factors = [2, 3, 3, 5, 13, 29, 37]
 		r = factorize(product(factors))
 		self.assertEqual(r, factors)
+	def test_isqrt(self):
+		vals = (2, 3, 5, 10, 23, 213, 325234, 2342352354, 324234234)
+		for i in vals:
+			x = isqrt(i*i)
+			self.assertEqual(x, i)
+		for i in vals:
+			x = isqrt(i*i + 1)
+			self.assertEqual(x, i)
+	def test_find_invpow(self):
+		vals = (3, 5, 10, 23, 213, 325234, 2342352354, 324234234)
+		# find_invpow doesn't work with x=2
+		for e in (2, 3, 4):
+			for i in vals:
+				x = find_invpow(int(i**e), e)
+				self.assertEqual(x, i)
 	def test_gcd(self):
 		f1 = product((2,3,3,5))
 		f2 = product((2,3,11))
