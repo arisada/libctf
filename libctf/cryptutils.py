@@ -101,6 +101,89 @@ def detect_ecb(data):
 	probas = freq_analysis(data, transform, evaluate, keyspace)
 	return probas[:-5:-1]
 
+def find_ecb(oracle, cleartext=b'A'*16):
+	"""Call an ECB oracle with known cleartext to find the offsets where
+	cleartext is encrypted.
+	returns (blocksize, cleartext_offset, encrypted_offset)
+	blocksize is the detected block size of the cipher
+	cleartext_offset is the amount of bytes needed before going in the first whole controlled block
+	encrypted_offset is the offset of the first block wholy controlled"""
+	block1 = oracle(b'')
+	for i in range(1, 48):
+		block = oracle(b'A'*i)
+		if len(block) != len(block1):
+			blocksize = len(block) - len(block1)
+			break
+	else:
+		raise Exception("Ciphertext doesn't grow with cleartext")
+	pattern = None
+	data = oracle(cleartext*3)
+	blocks = chunkstring(data, blocksize)
+	for i in range(len(blocks)):
+		for j in range(i+1, len(blocks)):
+			if blocks[i] == blocks[j]:
+				pattern = blocks[i]
+				break
+	if pattern is None:
+		raise Exception("Cipher is not ECB")
+	for offset in range(blocksize):
+		enc = oracle(b'B'*offset + cleartext)
+		if pattern in enc:
+			encoffset = enc.find(pattern)
+			break
+	else:
+		raise Exception("Couldn't find offset")
+	return (blocksize, offset, encoffset)
+
+def ecb_crack(oracle, debug=False, key_space=None):
+	"""Implement an attack on an encryption oracle 
+	oracle(input)
+	where its implementation is doing ECB(random||ourinput||secret)
+	and returns the ECB encrypted output."""
+	if(debug):
+		hexdump(oracle(b''))
+	if key_space == None:
+		key_space = keyspace.allprintable + b'\n'
+
+	blocksize, clear_offset, enc_offset = find_ecb(oracle)
+	print("blocksize %d, encrypted offset %d, %d prepad bytes needed"%(blocksize, enc_offset, clear_offset))
+
+	len1 = len(oracle(b"A"*clear_offset))
+	for clearlen in range(1, 17):
+		len2 = len(oracle(b"A"*(clear_offset + clearlen)))
+		if len2 != len1:
+			secret_len = len2 - blocksize - clearlen - enc_offset
+			break
+
+	print("secret_len: %d"%(secret_len))
+	# we cannot decrypt before the start of choosen ciphertext
+	prepad=b'B' * clear_offset
+	secret = b""
+	# start with an array of byteshifted ciphertexts
+	ciphertexts = [oracle(prepad + b'A' * i)[enc_offset:] for i in range(blocksize)]
+
+	for block in range((len1 +1) // blocksize):
+		for offset in range(blocksize):
+			block1 = ciphertexts[blocksize - offset -1][block*blocksize:(block+1)*blocksize]
+			#print (hexa(block1))
+			for j in key_space:
+				# last blocksize-1 bytes of secret
+				p = secret[-blocksize+1:]
+				p = b'A' * (blocksize - len(p) - 1) + p
+				candidate = p + byte(j)
+				#hexdump(candidate)
+				block2 = oracle(prepad + candidate)[enc_offset:][:blocksize]
+				if block1 == block2:
+					if(debug):
+						print("Found %s"%(repr(chr(j))))
+					secret += byte(j)
+					if len(secret) == secret_len:
+						return secret
+					break
+			else:
+				print("Character not found :(")
+				return secret
+
 class distributions(object):
 	class english(object):
 		#source https://en.wikipedia.org/wiki/Letter_frequency
