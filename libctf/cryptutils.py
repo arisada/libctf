@@ -333,13 +333,12 @@ def lcm(a, b):
 	return (a*b)//gcd(a,b)
 
 def extendedEuclid(a, b):
-    """return a tuple of three values: x, y and z, such that x is
-    the GCD of a and b, and x = y * a + z * b"""
-    if a == 0:
-        return b, 0, 1
-    else:
-        g, y, x = extendedEuclid(b % a, a)
-        return g, x - (b // a) * y, y
+	x,y, u,v = 0,1, 1,0
+	while a != 0:
+		q, r = b//a, b%a
+		m, n = x-u*q, y-v*q
+		b,a, x,y, u,v = a,r, u,v, m,n
+	return b, x, y
 
 def modInv(a, m):
     """returns the multiplicative inverse of a in modulo m as a
