@@ -34,6 +34,18 @@ def pkcs7(data, blocksize):
 	else:
 		return data + chr(padding)*padding
 
+def pkcs7_unpad(data):
+	if sys.version_info >= (3,0):
+		padding = data[-1]
+		if data[-padding:] != bytes([padding] * padding):
+			raise Exception("Invalid padding %d"%(padding))
+	else:
+		padding = ord(data[-1])
+		if data[-padding:] != chr(padding) * padding:
+			raise Exception("Invalid padding %d"%(padding))
+
+	return data[:-padding]
+
 def xor(data, key):
 	"""Xor data with a repeated key"""
 	paddedkey = key * (int(len(data)/len(key)) + 1)

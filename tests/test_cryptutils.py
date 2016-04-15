@@ -39,6 +39,9 @@ class TestCrypto(unittest.TestCase):
 		data = b'A'*12
 		out = pkcs7(data, 16)
 		self.assertEqual(out, b'AAAAAAAAAAAA\x04\x04\x04\x04')
+	def test_pkcs7_unpad(self):
+		data = pkcs7_unpad(b'AAAAAAAAAAAA\x04\x04\x04\x04')
+		self.assertEqual(data, b'A'*12)
 	def test_random(self):
 		r = get_random(8)
 		self.assertEqual(len(r), 8)
