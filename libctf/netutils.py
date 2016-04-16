@@ -124,7 +124,7 @@ class Socket(object):
 				data = self.recv()
 				if data == None:
 					break
-				sys.stdout.write(data)
+				sys.stdout.write(str(data, 'latin1'))
 			if sys.stdin in rlist:
 				data = sys.stdin.readline()
 				self.send(data)
