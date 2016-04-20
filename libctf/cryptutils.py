@@ -311,15 +311,18 @@ def all_primes(limit):
 			yield p
 		p += 2
 
-def factorize(v):
+def factorize(v, limit=None):
 	"""non-efficient factorization algorithm"""
 	factors = []
-	primes = all_primes(math.sqrt(v) + 1)
+	if limit is not None:
+		primes = all_primes(limit)
+	else:
+		primes = all_primes(math.sqrt(v) + 1)
 	for p in primes:
 		#print(p)
 		while(v%p ==0):
 			factors.append(p)
-			v = int(v / p)
+			v = v // p
 		if v == 1:
 			return factors
 	return factors + [v]
