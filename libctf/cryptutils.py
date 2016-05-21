@@ -136,7 +136,7 @@ def find_ecb(oracle, cleartext=b'A'*16):
 	return (blocksize, offset, encoffset)
 
 def ecb_crack(oracle, debug=False, key_space=None):
-	"""Implement an attack on an encryption oracle 
+	"""Implement an attack on an encryption oracle
 	oracle(input)
 	where its implementation is doing ECB(random||ourinput||secret)
 	and returns the ECB encrypted output."""
