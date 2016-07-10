@@ -12,6 +12,10 @@ def w(x):
 	"""Pack to uint16"""
 	return struct.pack("<H", x)
 
+def q(x):
+	"""pack to uint64"""
+	return struct.pack("<Q", x)
+
 def unpack32(x):
 	"""unpack from uint32"""
 	return struct.unpack("<I", x)[0]
@@ -96,7 +100,7 @@ def byte(i):
 		return i
 	else:
 		return chr(i)
-	
+
 def hexa(s):
 	"""portable hexa conversion"""
 	if sys.version_info >= (3, 0):
@@ -277,7 +281,7 @@ def hexdump(data, highlight = None, output="print", printoffset=0):
 	out = ""
 	offsets = all_occurences(data, highlight)
 	#print offsets
-	# convert to a bit mask 
+	# convert to a bit mask
 	mask = [False] * len(data)
 	for (index, length) in offsets:
 		for i in range(length):
@@ -305,7 +309,7 @@ def bindiff(d1, d2, onlydiff=True, output="print"):
 	# create a mask of differences
 	mask = [x != y for (x,y) in zip(d1, d2)]
 	mask += [True] * abs(len(d1) - len(d2))
-	
+
 	index = 0
 	out = ""
 	while index < totallen:
@@ -355,7 +359,7 @@ def bindifftable(d1, d2):
 		table.append((totallen, "", d2[totallen:]))
 	elif len(d1) > totallen:
 		raise Exception("cannot shrink in patches")
-	return table 
+	return table
 
 def bingrep(d, patterns, linesbefore=0, linesafter=0, output="print"):
 	offsets = all_occurences(d, patterns, merged = True)
