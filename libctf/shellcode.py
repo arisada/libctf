@@ -298,16 +298,16 @@ class SetRegisters(ShellcodeSnippet):
 # Common system calls
 
 class Syscall(ShellcodeSnippet):
-	"""Trigger a syscall. 
+	"""Trigger a syscall.
 	Syscall(linux_x86_syscalls["exit"], 0, ctx=ctx)"""
 	minparams=1
 	maxparams=7
 	def generate_linux_x86(self):
 		code = "\n; Syscall(%s)\n"%(self.args,)
 		params = zip(["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"],
-					list(self.args)) 
+					list(self.args))
 		code += SetRegisters(*params, ctx=self.ctx).generate()
-			
+
 		code += "int 0x80\n"
 		self.ctx.state["eax"]=REG_UNDEFINED
 		return code
@@ -396,6 +396,12 @@ class Getuid(ShellcodeSnippet):
 		code += Syscall(self.ctx.syscalls["getuid"], ctx=self.ctx).generate()
 		return code
 
+class Geteuid(ShellcodeSnippet):
+	def generate(self):
+		code = "\n; geteuid()\n"
+		code += Syscall(self.ctx.syscalls["geteuid"], ctx=self.ctx).generate()
+		return code
+
 class Setuid(ShellcodeSnippet):
 	nparams=1
 	def generate(self):
@@ -403,6 +409,16 @@ class Setuid(ShellcodeSnippet):
 		code = "\n; setuid(%s)\n"%(str(uid),)
 		code += Syscall(self.ctx.syscalls["setuid"], uid,
 			ctx=self.ctx).generate()
+		return code
+
+class Dup2(ShellcodeSnippet):
+	nparams=2
+	def generate(self):
+		oldfd = self.args[0]
+		newfd = self.args[1]
+		code = "\n; dup2(%s,%s)\n"%(str(oldfd), str(newfd))
+		code += Syscall(self.ctx.syscalls["dup2"], oldfd, newfd,
+			ctx = self.ctx).generate()
 		return code
 
 class Execve(ShellcodeSnippet):
