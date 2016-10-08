@@ -262,8 +262,8 @@ class keyspace(object):
 		finished = False
 		while not finished:
 			#print state
-			s = map(lambda x: space[x], state)
-			yield "".join(s)
+			s = map(lambda x: space[x:x+1], state)
+			yield b"".join(s)
 			for i in range(size-1, -1, -1):
 				if i == 0 and state[i] == max:
 					finished = True
