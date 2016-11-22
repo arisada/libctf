@@ -7,7 +7,9 @@ import Crypto.Hash.MD5
 import Crypto.Cipher.AES
 import sys
 import math
-from .textutils import tobytes, byte, chunkstring
+import struct
+
+from .textutils import tobytes, byte, chunkstring, bytestoint
 
 def sha1(x):
 	return Crypto.Hash.SHA.SHA1Hash(tobytes(x)).digest()
@@ -416,6 +418,7 @@ class RSA(object):
 			self.private = True
 			self.phi = (p-1)*(q-1)
 			self.d = modInv(self.e, self.phi)
+		self.bitlen = math.ceil(math.log(self.n, 2))
 	def sign(self, message):
 		signature = modExp(message, self.d, self.n)
 		return signature
@@ -425,3 +428,80 @@ class RSA(object):
 		return modExp(message, self.e, self.n)
 	def decrypt(self, crypted):
 		return modExp(crypted, self.d, self.n)
+	def sign_pkcs115(self, message):
+		"""sign with pkcs1 1.5 sha1"""
+		#   0:d=0  hl=2 l=  33 cons: SEQUENCE
+		#	2:d=1  hl=2 l=   9 cons: SEQUENCE
+		#	4:d=2  hl=2 l=   5 prim: OBJECT        :sha1
+		#	11:d=2  hl=2 l=   0 prim: NULL
+		#	13:d=1  hl=2 l=  20 prim: OCTET STRING [HEX DUMP]
+		hashed = sha1(message)
+		asn1 = \
+		ASN1(ASN1.SEQUENCE,
+			(
+				ASN1(ASN1.SEQUENCE, value = \
+					(
+						ASN1(ASN1.OBJECT, value=ASN1.SHA1_EID),
+						ASN1(ASN1.NULL, value=None)
+					)
+				),
+				ASN1(ASN1.OCTET_STRING, value=hashed)
+			)
+		)
+		encoded=pkcs115_encode(asn1.encode(), bitlen=self.bitlen,
+			do_sign=True)
+		return self.sign(encoded)
+
+def pkcs115_encode(data, bitlen, do_sign):
+	"""Encode data as a pkcs1 1.5 integer of size bitlen. do_sign
+	dictates whether using BT 01 or 00"""
+	# EB = 00 || BT || PS || 00 || D .           (1)
+	blob = b'\x00'
+	if do_sign:
+		blob += b'\x01'
+	else:
+		blob += b'\x02'
+	padding_len = bitlen//8 - len(data) - 3
+	if padding_len <= 0:
+		raise Exception ("Not enough space for pkcs11.5 padding")
+	if do_sign:
+		blob += b'\xff' * padding_len
+	else:
+		blob += urandom(padding_len)
+	blob += b'\x00' + data
+	return bytestoint(blob)
+
+class ASN1(object):
+	"""An ASN.1 DER encoder, with many limitations"""
+	SEQUENCE=0x10
+	OBJECT=0x06
+	NULL=0x05
+	OCTET_STRING=0x04
+
+	#flags
+	CONSTRUCTED=0x20
+
+	# IDS
+	SHA1_EID = "\x2b\x0e\x03\x02\x1a"
+	def __init__(self, tag, value):
+		self.tag = tag
+		self.value = value
+	def encode_element(self, elem):
+		if isinstance(elem, bytes):
+			return elem
+		else:
+			return elem.encode()
+	def encode(self):
+		if self.tag == self.SEQUENCE:
+			payload = b''
+			for elem in self.value:
+				payload += self.encode_element(elem)
+		elif self.tag == self.NULL:
+			payload = b''
+		else:
+			payload = self.encode_element(self.value)
+		size = len(payload)
+		tag = self.tag
+		if tag == self.SEQUENCE:
+			tag |= self.CONSTRUCTED
+		return struct.pack('B', tag) + struct.pack('B', size) + payload
