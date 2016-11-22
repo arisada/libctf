@@ -2,6 +2,7 @@
 import socket
 import select
 import sys
+import time
 
 class TimeoutException(Exception):
 	pass
@@ -12,25 +13,38 @@ class Socket(object):
 	readbuffer = b""
 	eof = False
 	destination = None
-	def __init__(self, host, port, sock=None):
+	throttle = None
+	def __init__(self, host, port, sock=None, throttle=None):
+		"""throtle: send bytes one by one and wait throttle s. in between"""
 		if sock != None:
 			self.s = sock
 		else:
 			self.s = socket.socket(socket.AF_INET)
 			self.destination = (host, port)
+		if throttle:
+			self.throttle = throttle
 
 	def connect(self):
 		return self.s.connect(self.destination)
+	def disable_nagle(self):
+		self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 	def send(self, x, encoding="utf-8"):
 		if not isinstance(x, bytes):
 			x = bytes(x, encoding)
-		return self.s.send(x)
+		if self.throttle is None:
+			return self.s.send(x)
+		else:
+			r = 0
+			for i in x:
+				r += self.s.send(bytes((i,)))
+				time.sleep(self.throttle)
+			return r
 	def __wait_recv__(self, timeout):
 		if (timeout != None):
 			(r,w,x) = self.poll(read=True, exception=True, timeout=timeout)
 			if not r and not x:
 				raise TimeoutException("recv: timeout")
-		
+
 	def recv(self, length=0, timeout=None):
 		"""Read length bytes from socket, return when data available"""
 		if len(self.readbuffer) > 0:
