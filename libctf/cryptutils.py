@@ -319,7 +319,7 @@ def factorize(v, limit=None):
 	if limit is not None:
 		primes = all_primes(limit)
 	else:
-		primes = all_primes(math.sqrt(v) + 1)
+		primes = all_primes(isqrt(v) + 1)
 	for p in primes:
 		#print(p)
 		while(v%p ==0):
