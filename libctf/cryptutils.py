@@ -190,32 +190,32 @@ class distributions(object):
 	class english(object):
 		#source https://en.wikipedia.org/wiki/Letter_frequency
 		letters = {
-			b'a':0.08167,
-			b'b':0.01492,
-			b'c':0.02782,
-			b'd':0.04253,
-			b'e':0.12702,
-			b'f':0.02228,
-			b'g':0.02015,
-			b'h':0.06094,
-			b'i':0.06966,
-			b'j':0.00153,
-			b'k':0.00772,
-			b'l':0.04025,
-			b'm':0.02406,
-			b'n':0.06749,
-			b'o':0.07507,
-			b'p':0.01929,
-			b'q':0.00095,
-			b'r':0.05987,
-			b's':0.06327,
-			b't':0.09056,
-			b'u':0.02758,
-			b'v':0.00987,
-			b'w':0.02361,
-			b'x':0.00150,
-			b'y':0.01974,
-			b'z':0.00074,
+		        b'a':0.08167,
+		        b'b':0.01492,
+		        b'c':0.02782,
+		        b'd':0.04253,
+		        b'e':0.12702,
+		        b'f':0.02228,
+		        b'g':0.02015,
+		        b'h':0.06094,
+		        b'i':0.06966,
+		        b'j':0.00153,
+		        b'k':0.00772,
+		        b'l':0.04025,
+		        b'm':0.02406,
+		        b'n':0.06749,
+		        b'o':0.07507,
+		        b'p':0.01929,
+		        b'q':0.00095,
+		        b'r':0.05987,
+		        b's':0.06327,
+		        b't':0.09056,
+		        b'u':0.02758,
+		        b'v':0.00987,
+		        b'w':0.02361,
+		        b'x':0.00150,
+		        b'y':0.01974,
+		        b'z':0.00074,
 		}
 		# http://www.data-compression.com/english.html defines space to be 0.1918
 		letters_with_space = {k:v*(1-0.1918) for k,v in letters.items()}
@@ -224,8 +224,8 @@ class distributions(object):
 		letters_with_caps_space = letters_with_space.copy()
 		letters_with_caps_space.update(caps_letters)
 _bitcount_lookup = [
-	0, 1, 1, 2, 1, 2, 2, 3,
-	1, 2, 2, 3, 2, 3, 3, 4
+        0, 1, 1, 2, 1, 2, 2, 3,
+        1, 2, 2, 3, 2, 3, 3, 4
 ]
 
 def count_bits_set(x):
@@ -373,15 +373,15 @@ def extendedEuclid(a, b):
 	return b, x, y
 
 def modInv(a, m):
-    """returns the multiplicative inverse of a in modulo m as a
-       positive value between zero and m-1"""
-    # notice that a and m need to co-prime to each other.
-    linearCombination = extendedEuclid(a, m)
-    return linearCombination[1] % m
+	"""returns the multiplicative inverse of a in modulo m as a
+	   positive value between zero and m-1"""
+	# notice that a and m need to co-prime to each other.
+	linearCombination = extendedEuclid(a, m)
+	return linearCombination[1] % m
 
 def modExp(a, d, n):
-    """returns a ** d (mod n)"""
-    return pow(a, d, n)
+	"""returns a ** d (mod n)"""
+	return pow(a, d, n)
 
 def chinese_remainder(a, n):
 	"""Find the chinese remainder of a list of a_i mod n_i"""
@@ -437,19 +437,19 @@ class RSA(object):
 		#	13:d=1  hl=2 l=  20 prim: OCTET STRING [HEX DUMP]
 		hashed = sha1(message)
 		asn1 = \
-		ASN1(ASN1.SEQUENCE,
-			(
-				ASN1(ASN1.SEQUENCE, value = \
-					(
-						ASN1(ASN1.OBJECT, value=ASN1.SHA1_EID),
-						ASN1(ASN1.NULL, value=None)
-					)
-				),
-				ASN1(ASN1.OCTET_STRING, value=hashed)
-			)
-		)
+		        ASN1(ASN1.SEQUENCE,
+		     (
+		                ASN1(ASN1.SEQUENCE, value = \
+		                     (
+		                                ASN1(ASN1.OBJECT, value=ASN1.SHA1_EID),
+		                                ASN1(ASN1.NULL, value=None)
+		                        )
+		                        ),
+		                ASN1(ASN1.OCTET_STRING, value=hashed)
+		        )
+		        )
 		encoded=pkcs115_encode(asn1.encode(), bitlen=self.bitlen,
-			do_sign=True)
+		                       do_sign=True)
 		return self.sign(encoded)
 
 def pkcs115_encode(data, bitlen, do_sign):
