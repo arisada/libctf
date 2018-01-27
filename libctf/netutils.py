@@ -3,6 +3,9 @@ import socket
 import select
 import sys
 import time
+import socket
+import serial
+import serial.tools.list_ports
 
 class TimeoutException(Exception):
 	pass
@@ -45,7 +48,7 @@ class Stream(object):
 		if self.eof:
 			return None
 		if length == 0:
-			length = 4096
+			length = self.bufsize
 		self.__wait_recv__(timeout)
 		ret = self.__do_recv__(length)
 		if len(ret) == 0:
@@ -56,7 +59,7 @@ class Stream(object):
 		"""Blocking read of length bytes"""
 		while len(self.readbuffer) < length and not self.eof:
 			self.__wait_recv__(timeout)
-			r = self.__do_recv__(4096)
+			r = self.__do_recv__(self.bufsize)
 			if len(r) == 0:
 				self.eof = True
 				break
@@ -70,7 +73,7 @@ class Stream(object):
 		while self.readbuffer.find(terminator) < 0 and \
 			not self.eof:
 			self.__wait_recv__(timeout)
-			r = self.__do_recv__(4096)
+			r = self.__do_recv__(self.bufsize)
 			if len(r) == 0:
 				self.eof = True
 				break
@@ -118,6 +121,7 @@ class Stream(object):
 			wlist = ()
 			xlist = (self.s, sys.stdin)
 			rlist,wlist,xlist = select.select(rlist, wlist, xlist, 30)
+			#print(rlist,wlist,xlist)
 			if(len(xlist) > 0):
 				break
 			if self.s in rlist:
@@ -125,12 +129,14 @@ class Stream(object):
 				if data == None:
 					break
 				sys.stdout.write(str(data, 'latin1'))
+				sys.stdout.flush()
 			if sys.stdin in rlist:
 				data = sys.stdin.readline()
 				self.send(data)
 
 # socket class
 class Socket(Stream):
+	bufsize = 4096
 	def __init__(self, host, port, sock=None, throttle=None):
 		"""throtle: send bytes one by one and wait throttle s. in between"""
 		super(Socket, self).__init__(throttle=throttle)
@@ -173,3 +179,44 @@ class BindSocket(object):
 	def close(self):
 		self.s.close()
 		del self.s
+
+class Serial(Stream):
+	bufsize = 1
+	def __init__(self, baudrate=115200, device=None, connect=True, reset_on_open=False, throttle=None):
+		"""throtle: send bytes one by one and wait throttle s. in between"""
+		super(Serial, self).__init__(throttle=throttle)
+		self.device = device
+		self.baudrate = baudrate
+		self.reset_on_open = reset_on_open
+		if(connect):
+			self.connect()
+
+	def connect(self):
+		if self.device is None:
+			ports = serial.tools.list_ports.comports()
+			if len(ports)==0:
+				raise Exception("No serial port found")
+			devices = [p.device for p in ports if not "Bluetooth" in p.device]
+			self.device = devices[0]
+		if not self.reset_on_open:
+			# everything I tried failed.
+			pass
+		self.s = serial.Serial(port = self.device, baudrate = self.baudrate)
+
+	def __do_send__(self, data):
+		w = self.s.write(data)
+		self.s.flush()
+		return w
+	def __do_recv__(self, length):
+		#Possible bug: read will not stop until timeout or length bytes read.
+		return self.s.read(length)
+
+	def close(self):
+		self.s.close()
+		del self.s
+
+	def reset(self):
+		"""Send a DTR to reset the board"""
+		self.s.setDTR(False)
+		time.sleep(0.1)
+		self.s.setDTR(True)
