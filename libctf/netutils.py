@@ -7,38 +7,25 @@ import time
 class TimeoutException(Exception):
 	pass
 
-# socket class
-class Socket(object):
-	s = None
-	readbuffer = b""
-	eof = False
-	destination = None
-	throttle = None
-	def __init__(self, host, port, sock=None, throttle=None):
-		"""throtle: send bytes one by one and wait throttle s. in between"""
-		if sock != None:
-			self.s = sock
-		else:
-			self.s = socket.socket(socket.AF_INET)
-			self.destination = (host, port)
-		if throttle:
-			self.throttle = throttle
+class Stream(object):
+	def __init__(self, throttle=None):
+		self.s = None
+		self.throttle = throttle
+		self.eof = False
+		self.readbuffer = b''
 
-	def connect(self):
-		return self.s.connect(self.destination)
-	def disable_nagle(self):
-		self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 	def send(self, x, encoding="utf-8"):
 		if not isinstance(x, bytes):
 			x = bytes(x, encoding)
 		if self.throttle is None:
-			return self.s.send(x)
+			return self.__do_send__(x)
 		else:
 			r = 0
 			for i in x:
-				r += self.s.send(bytes((i,)))
+				r += self.__do_send__(bytes((i,)))
 				time.sleep(self.throttle)
 			return r
+
 	def __wait_recv__(self, timeout):
 		if (timeout != None):
 			(r,w,x) = self.poll(read=True, exception=True, timeout=timeout)
@@ -60,15 +47,16 @@ class Socket(object):
 		if length == 0:
 			length = 4096
 		self.__wait_recv__(timeout)
-		ret = self.s.recv(length)
+		ret = self.__do_recv__(length)
 		if len(ret) == 0:
 			self.eof = True
 		return ret
+
 	def read_block(self, length, timeout=None):
 		"""Blocking read of length bytes"""
 		while len(self.readbuffer) < length and not self.eof:
 			self.__wait_recv__(timeout)
-			r = self.s.recv(4096)
+			r = self.__do_recv__(4096)
 			if len(r) == 0:
 				self.eof = True
 				break
@@ -82,7 +70,7 @@ class Socket(object):
 		while self.readbuffer.find(terminator) < 0 and \
 			not self.eof:
 			self.__wait_recv__(timeout)
-			r = self.s.recv(4096)
+			r = self.__do_recv__(4096)
 			if len(r) == 0:
 				self.eof = True
 				break
@@ -97,6 +85,7 @@ class Socket(object):
 		ret = self.readbuffer[:index]
 		self.readbuffer = self.readbuffer[index + len(terminator):]
 		return ret
+
 	def poll(self, read=True, write=False, exception=False, timeout=0.0):
 		"""Poll the socket for read, write or except event. Timeout in seconds.
 		Returns tupple of booleans"""
@@ -109,9 +98,6 @@ class Socket(object):
 		rlist,wlist,xlist = select.select(rlist, wlist, xlist, timeout)
 		return (len(rlist) > 0, len(wlist) > 0, len(xlist) > 0)
 
-	def close(self):
-		self.s.close()
-		del self.s
 	def expect(self, data, timeout=None):
 		"""loop until data is found on the socket"""
 		s=b""
@@ -142,6 +128,31 @@ class Socket(object):
 			if sys.stdin in rlist:
 				data = sys.stdin.readline()
 				self.send(data)
+
+# socket class
+class Socket(Stream):
+	def __init__(self, host, port, sock=None, throttle=None):
+		"""throtle: send bytes one by one and wait throttle s. in between"""
+		super(Socket, self).__init__(throttle=throttle)
+		if sock != None:
+			self.s = sock
+			self.destination = None
+		else:
+			self.s = socket.socket(socket.AF_INET)
+			self.destination = (host, port)
+
+	def connect(self):
+		return self.s.connect(self.destination)
+	def disable_nagle(self):
+		self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+	def __do_send__(self, data):
+		return self.s.send(data)
+	def __do_recv__(self, length):
+		return self.s.recv(length)
+
+	def close(self):
+		self.s.close()
+		del self.s
 
 class BindSocket(object):
 	s = None
