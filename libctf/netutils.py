@@ -105,7 +105,11 @@ class Stream(object):
 		"""loop until data is found on the socket"""
 		s=b""
 		while s.find(data) < 0:
-			r = self.recv(timeout=timeout)
+			try:
+				r = self.recv(timeout=timeout)
+			except TimeoutException as e:
+				self.readbuffer=s
+				raise e
 			if r != None:
 				s+=r
 			else:
